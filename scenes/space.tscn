@@ -2,6 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://bnc76bgry58jh" path="res://scenes/miracle.tscn" id="1_rysn1"]
 [ext_resource type="PackedScene" uid="uid://dxf01xcb5ghcy" path="res://scenes/user_interface.tscn" id="2_7q4ap"]
+[ext_resource type="Script" uid="uid://cbuhsuo1jg84i" path="res://scripts/camera_controller.gd" id="3_17jim"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_rysn1"]
 radius = 100.0
@@ -16,7 +17,10 @@ height = 4000.0
 [node name="Miracle" parent="." unique_id=1293576428 instance=ExtResource("1_rysn1")]
 transform = Transform3D(-0.99423176, 0, -0.10725324, 0, 1, 0, 0.10725324, 0, -0.99423176, -1.365961, 0, -2.7939286)
 
-[node name="Camera3D" type="Camera3D" parent="Miracle" unique_id=1018083168]
+[node name="CameraPivot" type="Node3D" parent="Miracle" unique_id=1662215188]
+script = ExtResource("3_17jim")
+
+[node name="Camera3D" type="Camera3D" parent="Miracle/CameraPivot" unique_id=1018083168]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, -20)
 
 [node name="UserInterface" parent="." unique_id=889957040 node_paths=PackedStringArray("ship") instance=ExtResource("2_7q4ap")]

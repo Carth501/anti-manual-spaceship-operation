@@ -10,11 +10,16 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_j8r0o")
-throttle_slider_path = NodePath("HBoxContainer/ThrusterControl/VSlider")
-throttle_label_path = NodePath("HBoxContainer/ThrusterControl/Label")
-vertical_value_label_path = NodePath("HBoxContainer/VBoxContainer/Vertical/Value")
+throttle_slider_path = NodePath("Controls/ThrusterControl/VSlider")
+throttle_label_path = NodePath("Controls/ThrusterControl/Label")
+roll_value_label_path = NodePath("Controls/VBoxContainer/Roll/Value")
+pitch_value_label_path = NodePath("Controls/VBoxContainer/Pitch/Value")
+yaw_value_label_path = NodePath("Controls/VBoxContainer/Yaw/Value")
+horizontal_value_label_path = NodePath("Controls/VBoxContainer/Horizontal/Value")
+vertical_value_label_path = NodePath("Controls/VBoxContainer/Vertical/Value")
+fore_value_label_path = NodePath("Controls/VBoxContainer/Fore/Value")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=1366659684]
+[node name="Controls" type="HBoxContainer" parent="." unique_id=1366659684]
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
@@ -24,82 +29,198 @@ offset_right = 103.0
 grow_vertical = 0
 theme_override_constants/separation = 20
 
-[node name="ThrusterControl" type="HBoxContainer" parent="HBoxContainer" unique_id=172850374]
+[node name="ThrusterControl" type="HBoxContainer" parent="Controls" unique_id=172850374]
 layout_mode = 2
 alignment = 2
 
-[node name="VSlider" type="VSlider" parent="HBoxContainer/ThrusterControl" unique_id=2091011137]
+[node name="VSlider" type="VSlider" parent="Controls/ThrusterControl" unique_id=2091011137]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="HBoxContainer/ThrusterControl" unique_id=1481298198]
+[node name="Label" type="Label" parent="Controls/ThrusterControl" unique_id=1481298198]
 custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="HBoxContainer" unique_id=154077265]
+[node name="VBoxContainer" type="VBoxContainer" parent="Controls" unique_id=154077265]
 layout_mode = 2
 
-[node name="Roll" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=850404601]
+[node name="Roll" type="HBoxContainer" parent="Controls/VBoxContainer" unique_id=850404601]
 layout_mode = 2
 
-[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Roll" unique_id=1263665586]
+[node name="Variable" type="Label" parent="Controls/VBoxContainer/Roll" unique_id=1263665586]
 layout_mode = 2
 text = "Roll"
 
-[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Roll" unique_id=102666881]
+[node name="Value" type="Label" parent="Controls/VBoxContainer/Roll" unique_id=102666881]
 layout_mode = 2
 text = "%#"
 
-[node name="Pitch" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=359368613]
+[node name="Pitch" type="HBoxContainer" parent="Controls/VBoxContainer" unique_id=359368613]
 layout_mode = 2
 
-[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Pitch" unique_id=1118993848]
+[node name="Variable" type="Label" parent="Controls/VBoxContainer/Pitch" unique_id=1118993848]
 layout_mode = 2
 text = "Pitch"
 
-[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Pitch" unique_id=103959793]
+[node name="Value" type="Label" parent="Controls/VBoxContainer/Pitch" unique_id=103959793]
 layout_mode = 2
 text = "%#"
 
-[node name="Yaw" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=782456388]
+[node name="Yaw" type="HBoxContainer" parent="Controls/VBoxContainer" unique_id=782456388]
 layout_mode = 2
 
-[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Yaw" unique_id=1567145709]
+[node name="Variable" type="Label" parent="Controls/VBoxContainer/Yaw" unique_id=1567145709]
 layout_mode = 2
 text = "Yaw"
 
-[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Yaw" unique_id=1490093416]
+[node name="Value" type="Label" parent="Controls/VBoxContainer/Yaw" unique_id=1490093416]
 layout_mode = 2
 text = "%#"
 
-[node name="Horizontal" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=1802234531]
+[node name="Horizontal" type="HBoxContainer" parent="Controls/VBoxContainer" unique_id=1802234531]
 layout_mode = 2
 
-[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Horizontal" unique_id=888680510]
+[node name="Variable" type="Label" parent="Controls/VBoxContainer/Horizontal" unique_id=888680510]
 layout_mode = 2
 text = "Horizontal"
 
-[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Horizontal" unique_id=570608830]
+[node name="Value" type="Label" parent="Controls/VBoxContainer/Horizontal" unique_id=570608830]
 layout_mode = 2
 text = "%#"
 
-[node name="Vertical" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=686752964]
+[node name="Vertical" type="HBoxContainer" parent="Controls/VBoxContainer" unique_id=686752964]
 layout_mode = 2
 
-[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Vertical" unique_id=1689269602]
+[node name="Variable" type="Label" parent="Controls/VBoxContainer/Vertical" unique_id=1689269602]
 layout_mode = 2
 text = "Vertical"
 
-[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Vertical" unique_id=228444106]
+[node name="Value" type="Label" parent="Controls/VBoxContainer/Vertical" unique_id=228444106]
 layout_mode = 2
 text = "%#"
 
-[node name="Fore" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=1164772468]
+[node name="Fore" type="HBoxContainer" parent="Controls/VBoxContainer" unique_id=1164772468]
 layout_mode = 2
 
-[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Fore" unique_id=891551370]
+[node name="Variable" type="Label" parent="Controls/VBoxContainer/Fore" unique_id=891551370]
 layout_mode = 2
 text = "Fore"
 
-[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Fore" unique_id=111922249]
+[node name="Value" type="Label" parent="Controls/VBoxContainer/Fore" unique_id=111922249]
 layout_mode = 2
 text = "%#"
+
+[node name="Velocities" type="HBoxContainer" parent="." unique_id=1247765827]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -139.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="Linear" type="VBoxContainer" parent="Velocities" unique_id=1703601511]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Velocities/Linear" unique_id=1907780441]
+layout_mode = 2
+text = "Linear"
+
+[node name="XRow" type="HBoxContainer" parent="Velocities/Linear" unique_id=1973748125]
+layout_mode = 2
+
+[node name="AxisName" type="Label" parent="Velocities/Linear/XRow" unique_id=343670765]
+layout_mode = 2
+text = "X"
+
+[node name="Value" type="Label" parent="Velocities/Linear/XRow" unique_id=772891555]
+layout_mode = 2
+text = "#m"
+
+[node name="YRow" type="HBoxContainer" parent="Velocities/Linear" unique_id=494953107]
+layout_mode = 2
+
+[node name="AxisName" type="Label" parent="Velocities/Linear/YRow" unique_id=394126815]
+layout_mode = 2
+text = "Y"
+
+[node name="Value" type="Label" parent="Velocities/Linear/YRow" unique_id=872872958]
+layout_mode = 2
+text = "#m"
+
+[node name="ZRow" type="HBoxContainer" parent="Velocities/Linear" unique_id=1313827992]
+layout_mode = 2
+
+[node name="AxisName" type="Label" parent="Velocities/Linear/ZRow" unique_id=1156856456]
+layout_mode = 2
+text = "Z"
+
+[node name="Value" type="Label" parent="Velocities/Linear/ZRow" unique_id=681725567]
+layout_mode = 2
+text = "#m"
+
+[node name="TotalRow" type="HBoxContainer" parent="Velocities/Linear" unique_id=1704158661]
+layout_mode = 2
+
+[node name="AxisName" type="Label" parent="Velocities/Linear/TotalRow" unique_id=21522876]
+layout_mode = 2
+text = "Total"
+
+[node name="Value" type="Label" parent="Velocities/Linear/TotalRow" unique_id=1743647693]
+layout_mode = 2
+text = "#m"
+
+[node name="Angular" type="VBoxContainer" parent="Velocities" unique_id=1719732487]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Velocities/Angular" unique_id=2014296975]
+layout_mode = 2
+text = "Angular"
+
+[node name="XRow" type="HBoxContainer" parent="Velocities/Angular" unique_id=1516756030]
+layout_mode = 2
+
+[node name="AxisName" type="Label" parent="Velocities/Angular/XRow" unique_id=1099694632]
+layout_mode = 2
+text = "X"
+
+[node name="Value" type="Label" parent="Velocities/Angular/XRow" unique_id=1678340516]
+layout_mode = 2
+text = "#m"
+
+[node name="YRow" type="HBoxContainer" parent="Velocities/Angular" unique_id=1416234789]
+layout_mode = 2
+
+[node name="AxisName" type="Label" parent="Velocities/Angular/YRow" unique_id=1339940712]
+layout_mode = 2
+text = "Y"
+
+[node name="Value" type="Label" parent="Velocities/Angular/YRow" unique_id=492235577]
+layout_mode = 2
+text = "#m"
+
+[node name="ZRow" type="HBoxContainer" parent="Velocities/Angular" unique_id=1979204546]
+layout_mode = 2
+
+[node name="AxisName" type="Label" parent="Velocities/Angular/ZRow" unique_id=1772328130]
+layout_mode = 2
+text = "Z"
+
+[node name="Value" type="Label" parent="Velocities/Angular/ZRow" unique_id=2064279479]
+layout_mode = 2
+text = "#m"
+
+[node name="TotalRow" type="HBoxContainer" parent="Velocities/Angular" unique_id=1231972180]
+layout_mode = 2
+
+[node name="AxisName" type="Label" parent="Velocities/Angular/TotalRow" unique_id=197012231]
+layout_mode = 2
+text = "Total"
+
+[node name="Value" type="Label" parent="Velocities/Angular/TotalRow" unique_id=790732663]
+layout_mode = 2
+text = "#m"

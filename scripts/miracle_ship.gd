@@ -18,3 +18,15 @@ func get_thruster_controller() -> ThrusterController:
 
 func get_control_interface() -> ControlInterface:
 	return control_interface
+
+
+func get_linear_momentum() -> Vector3:
+	return linear_velocity * mass
+
+
+func get_angular_momentum() -> Vector3:
+	var inverse_inertia_tensor := get_inverse_inertia_tensor()
+	if is_zero_approx(inverse_inertia_tensor.determinant()):
+		return Vector3.ZERO
+
+	return inverse_inertia_tensor.inverse() * angular_velocity

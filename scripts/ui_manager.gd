@@ -10,6 +10,14 @@ extends Control
 @export var horizontal_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Horizontal/Value"
 @export var vertical_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Verticle/Value"
 @export var fore_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Fore/Value"
+@export var linear_x_value_label_path: NodePath = ^"Velocities/Linear/XRow/Value"
+@export var linear_y_value_label_path: NodePath = ^"Velocities/Linear/YRow/Value"
+@export var linear_z_value_label_path: NodePath = ^"Velocities/Linear/ZRow/Value"
+@export var linear_total_value_label_path: NodePath = ^"Velocities/Linear/TotalRow/Value"
+@export var angular_x_value_label_path: NodePath = ^"Velocities/Angular/XRow/Value"
+@export var angular_y_value_label_path: NodePath = ^"Velocities/Angular/YRow/Value"
+@export var angular_z_value_label_path: NodePath = ^"Velocities/Angular/ZRow/Value"
+@export var angular_total_value_label_path: NodePath = ^"Velocities/Angular/TotalRow/Value"
 
 var control_interface: ControlInterface
 var throttle_slider: VSlider
@@ -20,6 +28,14 @@ var yaw_value_label: Label
 var horizontal_value_label: Label
 var vertical_value_label: Label
 var fore_value_label: Label
+var linear_x_value_label: Label
+var linear_y_value_label: Label
+var linear_z_value_label: Label
+var linear_total_value_label: Label
+var angular_x_value_label: Label
+var angular_y_value_label: Label
+var angular_z_value_label: Label
+var angular_total_value_label: Label
 
 
 func _ready() -> void:
@@ -36,6 +52,14 @@ func _ready() -> void:
 	horizontal_value_label = get_node_or_null(horizontal_value_label_path) as Label
 	vertical_value_label = get_node_or_null(vertical_value_label_path) as Label
 	fore_value_label = get_node_or_null(fore_value_label_path) as Label
+	linear_x_value_label = get_node_or_null(linear_x_value_label_path) as Label
+	linear_y_value_label = get_node_or_null(linear_y_value_label_path) as Label
+	linear_z_value_label = get_node_or_null(linear_z_value_label_path) as Label
+	linear_total_value_label = get_node_or_null(linear_total_value_label_path) as Label
+	angular_x_value_label = get_node_or_null(angular_x_value_label_path) as Label
+	angular_y_value_label = get_node_or_null(angular_y_value_label_path) as Label
+	angular_z_value_label = get_node_or_null(angular_z_value_label_path) as Label
+	angular_total_value_label = get_node_or_null(angular_total_value_label_path) as Label
 
 	if control_interface == null:
 		push_warning("UIManager could not resolve a ControlInterface from its ship")
@@ -54,6 +78,14 @@ func _ready() -> void:
 	control_interface.control_axes_changed.connect(_on_control_axes_changed)
 	_sync_ui_to_throttle()
 	_update_axis_labels(control_interface.get_control_axes())
+	_update_momentum_labels()
+
+
+func _physics_process(_delta: float) -> void:
+	if ship == null:
+		return
+
+	_update_momentum_labels()
 
 
 func _configure_throttle_slider() -> void:
@@ -104,3 +136,32 @@ func _update_axis_label(target_label: Label, value: float) -> void:
 		return
 
 	target_label.text = "%+d%%" % int(round(value * 100.0))
+
+
+func _update_momentum_labels() -> void:
+	var linear_momentum := ship.get_linear_momentum()
+	var angular_momentum := ship.get_angular_momentum()
+
+	_update_signed_value_label(linear_x_value_label, linear_momentum.x)
+	_update_signed_value_label(linear_y_value_label, linear_momentum.y)
+	_update_signed_value_label(linear_z_value_label, linear_momentum.z)
+	_update_unsigned_value_label(linear_total_value_label, linear_momentum.length())
+ 
+	_update_signed_value_label(angular_x_value_label, angular_momentum.x)
+	_update_signed_value_label(angular_y_value_label, angular_momentum.y)
+	_update_signed_value_label(angular_z_value_label, angular_momentum.z)
+	_update_unsigned_value_label(angular_total_value_label, angular_momentum.length())
+
+
+func _update_signed_value_label(target_label: Label, value: float) -> void:
+	if target_label == null:
+		return
+
+	target_label.text = "%+.1f" % value
+
+
+func _update_unsigned_value_label(target_label: Label, value: float) -> void:
+	if target_label == null:
+		return
+
+	target_label.text = "%.1f" % value

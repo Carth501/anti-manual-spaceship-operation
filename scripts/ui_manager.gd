@@ -78,14 +78,14 @@ func _ready() -> void:
 	control_interface.control_axes_changed.connect(_on_control_axes_changed)
 	_sync_ui_to_throttle()
 	_update_axis_labels(control_interface.get_control_axes())
-	_update_momentum_labels()
+	_update_velocity_labels()
 
 
 func _physics_process(_delta: float) -> void:
 	if ship == null:
 		return
 
-	_update_momentum_labels()
+	_update_velocity_labels()
 
 
 func _configure_throttle_slider() -> void:
@@ -138,19 +138,19 @@ func _update_axis_label(target_label: Label, value: float) -> void:
 	target_label.text = "%+d%%" % int(round(value * 100.0))
 
 
-func _update_momentum_labels() -> void:
-	var linear_momentum := ship.get_linear_momentum()
-	var angular_momentum := ship.get_angular_momentum()
+func _update_velocity_labels() -> void:
+	var linear_velocity := ship.get_linear_velocity_readout()
+	var angular_velocity := ship.get_angular_velocity_readout()
 
-	_update_signed_value_label(linear_x_value_label, linear_momentum.x)
-	_update_signed_value_label(linear_y_value_label, linear_momentum.y)
-	_update_signed_value_label(linear_z_value_label, linear_momentum.z)
-	_update_unsigned_value_label(linear_total_value_label, linear_momentum.length())
- 
-	_update_signed_value_label(angular_x_value_label, angular_momentum.x)
-	_update_signed_value_label(angular_y_value_label, angular_momentum.y)
-	_update_signed_value_label(angular_z_value_label, angular_momentum.z)
-	_update_unsigned_value_label(angular_total_value_label, angular_momentum.length())
+	_update_signed_value_label(linear_x_value_label, linear_velocity.x)
+	_update_signed_value_label(linear_y_value_label, linear_velocity.y)
+	_update_signed_value_label(linear_z_value_label, linear_velocity.z)
+	_update_unsigned_value_label(linear_total_value_label, linear_velocity.length())
+
+	_update_signed_value_label(angular_x_value_label, angular_velocity.x)
+	_update_signed_value_label(angular_y_value_label, angular_velocity.y)
+	_update_signed_value_label(angular_z_value_label, angular_velocity.z)
+	_update_unsigned_value_label(angular_total_value_label, angular_velocity.length())
 
 
 func _update_signed_value_label(target_label: Label, value: float) -> void:

@@ -9,7 +9,7 @@ extends Control
 @export var pitch_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Pitch/Value"
 @export var yaw_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Yaw/Value"
 @export var horizontal_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Horizontal/Value"
-@export var vertical_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Verticle/Value"
+@export var vertical_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Vertical/Value"
 @export var fore_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Fore/Value"
 @export var linear_x_value_label_path: NodePath = ^"Velocities/Linear/XRow/Value"
 @export var linear_y_value_label_path: NodePath = ^"Velocities/Linear/YRow/Value"
@@ -23,7 +23,7 @@ extends Control
 @export var goal_inside_value_label_path: NodePath = ^"GoalStatus/MarginContainer/VBoxContainer/InsideRow/Value"
 @export var goal_relative_speed_value_label_path: NodePath = ^"GoalStatus/MarginContainer/VBoxContainer/RelativeSpeedRow/Value"
 @export var goal_threshold_value_label_path: NodePath = ^"GoalStatus/MarginContainer/VBoxContainer/ThresholdRow/Value"
-
+ 
 var control_interface: ControlInterface
 var throttle_slider: VSlider
 var throttle_label: Label

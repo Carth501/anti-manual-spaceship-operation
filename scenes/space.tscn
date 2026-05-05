@@ -4,14 +4,20 @@
 [ext_resource type="PackedScene" uid="uid://dxf01xcb5ghcy" path="res://scenes/user_interface.tscn" id="2_7q4ap"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_rysn1"]
+radius = 100.0
+height = 1000.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_c6rj5"]
+radius = 2000.0
+height = 4000.0
 
 [node name="Node3D" type="Node3D" unique_id=2040746514]
 
 [node name="Miracle" parent="." unique_id=1293576428 instance=ExtResource("1_rysn1")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.365961, 0, -2.7939286)
+transform = Transform3D(-0.99423176, 0, -0.10725324, 0, 1, 0, 0.10725324, 0, -0.99423176, -1.365961, 0, -2.7939286)
 
 [node name="Camera3D" type="Camera3D" parent="Miracle" unique_id=1018083168]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 12.230465)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, -20)
 
 [node name="UserInterface" parent="." unique_id=889957040 node_paths=PackedStringArray("ship") instance=ExtResource("2_7q4ap")]
 ship = NodePath("../Miracle")
@@ -31,6 +37,10 @@ light_energy = 0.05
 transform = Transform3D(-0.22372392, -0.63952994, 0.73549247, -0.56049633, 0.70177656, 0.43972003, -0.79736537, -0.31386518, -0.51545835, 0, 0, 0)
 light_energy = 0.05
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1953258648]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.446865, 0, -41.18352)
+[node name="Capsule" type="MeshInstance3D" parent="." unique_id=1953258648]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1490.586, 957.6142, -239.623)
 mesh = SubResource("CapsuleMesh_rysn1")
+
+[node name="Sphere" type="MeshInstance3D" parent="." unique_id=163874298]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3495.5718, 6.4831543, -4.875122)
+mesh = SubResource("SphereMesh_c6rj5")

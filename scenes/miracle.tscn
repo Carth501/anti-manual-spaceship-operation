@@ -42,7 +42,7 @@ shape = SubResource("CapsuleShape3D_1j0ab")
 
 [node name="ThrustController" type="Node3D" parent="." unique_id=1653808799]
 script = ExtResource("1_gftn0")
-thruster_paths = Array[NodePath]([NodePath("ThrusterPoint"), NodePath("ThrusterPoint2"), NodePath("ThrusterPoint3"), NodePath("ThrusterPoint4"), NodePath("ThrusterPoint5"), NodePath("ThrusterPoint6")])
+thruster_paths = Array[NodePath]([NodePath("ThrusterPoint"), NodePath("ThrusterPoint2"), NodePath("ThrusterPoint3"), NodePath("ThrusterPoint4"), NodePath("ThrusterPoint5"), NodePath("ThrusterPoint6"), NodePath("ThrusterPoint7"), NodePath("ThrusterPoint8"), NodePath("ThrusterPoint9"), NodePath("ThrusterPoint10"), NodePath("ThrusterPoint11"), NodePath("ThrusterPoint12"), NodePath("ThrusterPoint13")])
 
 [node name="ThrusterPoint" parent="ThrustController" unique_id=1175108193 instance=ExtResource("3_3qc6s")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -3.3015192, 0)
@@ -176,6 +176,22 @@ mesh = SubResource("CylinderMesh_a6664")
 
 [node name="ThrusterPoint9" parent="ThrustController" unique_id=1081641556 instance=ExtResource("3_3qc6s")]
 transform = Transform3D(0.46811494, 0.8836676, -3.8626336e-08, -0.8836676, 0.46811494, 2.3249433e-08, 3.8626336e-08, 2.3249434e-08, 1, -2.8981466, -0.79854655, -1.09408404e-07)
+max_force = 2000.0
+
+[node name="ThrusterPoint10" parent="ThrustController" unique_id=1529153269 instance=ExtResource("3_3qc6s")]
+transform = Transform3D(0.019821085, -0.97218007, 0.2333945, 0.9997922, 0.020384058, 4.1613156e-08, -0.004757568, 0.23334602, 0.9723821, 0.4403156, -0.35054198, -3.1437259)
+max_force = 2000.0
+
+[node name="ThrusterPoint11" parent="ThrustController" unique_id=1632324137 instance=ExtResource("3_3qc6s")]
+transform = Transform3D(-0.018070681, 0.8863267, 0.462708, 0.99979234, 0.020384071, -3.9233342e-08, -0.009431908, 0.4626119, -0.88651085, -0.41430867, -0.35054198, -3.1437259)
+max_force = 2000.0
+
+[node name="ThrusterPoint12" parent="ThrustController" unique_id=395868154 instance=ExtResource("3_3qc6s")]
+transform = Transform3D(0.019821087, -0.9721802, 0.23339455, -0.96038043, 0.04639266, 0.27480423, -0.277987, -0.22959448, -0.93274313, 0.4403156, -0.35054168, 3.213592)
+max_force = 2000.0
+
+[node name="ThrusterPoint13" parent="ThrustController" unique_id=1105060289 instance=ExtResource("3_3qc6s")]
+transform = Transform3D(-0.018070683, 0.8863267, 0.46270803, -0.9617014, 0.11118532, -0.2505362, -0.2735032, -0.44951436, 0.8503723, -0.41430867, -0.35054168, 3.213592)
 max_force = 2000.0
 
 [node name="ControlInterface" type="Node" parent="." unique_id=492666651 node_paths=PackedStringArray("ship")]

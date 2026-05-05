@@ -20,6 +20,11 @@ func _ready() -> void:
 	_update_feedback()
 
 
+func set_throttle(value: float) -> void:
+	current_throttle = clamp(value, 0.0, 1.0) if enabled and max_force > 0.0 else 0.0
+	_update_feedback()
+
+
 func apply_command(
 		reference_frame: Node3D,
 		local_linear_request: Vector3,
@@ -27,14 +32,13 @@ func apply_command(
 		center_of_mass_local: Vector3,
 		max_torque_leverage: float
 	) -> void:
-	current_throttle = evaluate_command(
+		set_throttle(evaluate_command(
 		reference_frame,
 		local_linear_request,
 		local_angular_request,
 		center_of_mass_local,
 		max_torque_leverage
-	)
-	_update_feedback()
+		))
 
 
 func evaluate_command(

@@ -7,6 +7,7 @@ extends Node3D
 
 var current_linear_request: Vector3 = Vector3.ZERO
 var current_angular_request: Vector3 = Vector3.ZERO
+var direct_thruster_mode_enabled := false
 var rigid_body: RigidBody3D
 var thrusters: Array[ThrusterPoint] = []
 
@@ -36,9 +37,34 @@ func refresh_thrusters() -> void:
 
 
 func set_input(local_linear_request: Vector3, local_angular_request: Vector3) -> void:
+	direct_thruster_mode_enabled = false
 	current_linear_request = local_linear_request
 	current_angular_request = local_angular_request
 	_update_thrusters()
+
+
+func set_direct_throttles(throttle_values: Array[float]) -> void:
+	direct_thruster_mode_enabled = true
+	current_linear_request = Vector3.ZERO
+	current_angular_request = Vector3.ZERO
+
+	for index in thrusters.size():
+		var target_throttle := 0.0
+		if index < throttle_values.size():
+			target_throttle = throttle_values[index]
+		thrusters[index].set_throttle(target_throttle)
+
+
+func get_thruster_count() -> int:
+	return thrusters.size()
+
+
+func get_current_throttles() -> Array[float]:
+	var throttle_values: Array[float] = []
+	throttle_values.resize(thrusters.size())
+	for index in thrusters.size():
+		throttle_values[index] = thrusters[index].current_throttle
+	return throttle_values
 
 
 func apply_current_forces() -> void:
@@ -55,6 +81,10 @@ func apply_current_forces() -> void:
 
 
 func stop_all() -> void:
+	if direct_thruster_mode_enabled:
+		set_direct_throttles([])
+		return
+
 	set_input(Vector3.ZERO, Vector3.ZERO)
 
 

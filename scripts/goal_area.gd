@@ -23,6 +23,7 @@ func _ready() -> void:
 		push_warning("GoalArea is missing its ship reference")
 	if speed_threshold_mps < 0.0:
 		push_warning("GoalArea speed threshold should not be negative")
+	refresh_goal_state()
 
 
 func _physics_process(_delta: float) -> void:
@@ -54,11 +55,21 @@ func is_ship_inside() -> bool:
 
 
 func reset_goal() -> void:
-	if not is_completed:
-		return
+	if is_completed:
+		is_completed = false
+		completion_changed.emit(false)
 
-	is_completed = false
-	completion_changed.emit(false)
+	refresh_goal_state()
+
+
+func refresh_goal_state() -> void:
+	var next_inside := ship != null and overlaps_body(ship)
+	if ship_inside != next_inside:
+		ship_inside = next_inside
+		occupancy_changed.emit(ship_inside)
+
+	current_relative_speed = get_relative_speed()
+	relative_speed_changed.emit(current_relative_speed)
 
 
 func _on_body_entered(body: Node) -> void:

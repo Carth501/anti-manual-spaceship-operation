@@ -10,12 +10,34 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_j8r0o")
+throttle_slider_path = NodePath("Control/VSlider")
 
-[node name="VSlider" type="VSlider" parent="." unique_id=2091011137]
+[node name="Control" type="Control" parent="." unique_id=609721339]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 17.0
+offset_top = -57.0
+offset_right = 57.0
+offset_bottom = -17.0
+grow_vertical = 0
+
+[node name="VSlider" type="VSlider" parent="Control" unique_id=2091011137]
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_top = -162.0
 offset_right = 16.0
+grow_vertical = 0
+
+[node name="Label" type="Label" parent="Control" unique_id=1481298198]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 19.0
+offset_top = -23.0
+offset_right = 59.0
 grow_vertical = 0

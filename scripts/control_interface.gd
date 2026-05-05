@@ -1,6 +1,8 @@
 class_name ControlInterface
 extends Node
 
+signal main_throttle_changed(value: float)
+
 @export var thruster_controller_path: NodePath = ^"../ThrustController"
 @export var local_right_axis: Vector3 = Vector3.RIGHT
 @export var local_up_axis: Vector3 = Vector3.BACK
@@ -34,7 +36,20 @@ func _physics_process(delta: float) -> void:
 func _update_main_throttle(delta: float) -> void:
 	var throttle_change := Input.get_action_strength("Increase_Main_Thruster")
 	throttle_change -= Input.get_action_strength("Decrease_Main_Thruster")
-	main_throttle = clamp(main_throttle + (throttle_change * main_throttle_change_rate * delta), 0.0, 1.0)
+	set_main_throttle(main_throttle + (throttle_change * main_throttle_change_rate * delta))
+
+
+func set_main_throttle(value: float) -> void:
+	var clamped_value: float = clamp(value, 0.0, 1.0)
+	if is_equal_approx(main_throttle, clamped_value):
+		return
+
+	main_throttle = clamped_value
+	main_throttle_changed.emit(main_throttle)
+
+
+func get_main_throttle() -> float:
+	return main_throttle
 
 
 func _build_linear_request() -> Vector3:

@@ -1,0 +1,178 @@
+[gd_scene format=3 uid="uid://bnc76bgry58jh"]
+
+[ext_resource type="Script" uid="uid://bd1srxg5fknxx" path="res://scripts/thruster_controller.gd" id="1_gftn0"]
+[ext_resource type="PackedScene" uid="uid://d3crr0lhsomm5" path="res://assets/miracle.glb" id="2_5wymp"]
+[ext_resource type="Script" uid="uid://dioewqw1hclcl" path="res://scripts/thruster_point.gd" id="3_1j0ab"]
+[ext_resource type="PackedScene" uid="uid://uib80frhkad7" path="res://scenes/thruster_point.tscn" id="3_3qc6s"]
+[ext_resource type="Script" uid="uid://cm3no0fkq30q3" path="res://scripts/control_interface.gd" id="5_1j0ab"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1j0ab"]
+radius = 3.0634766
+height = 9.437683
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_xvgsr"]
+lifetime_randomness = 0.49
+angle_min = 1.0728835e-05
+angle_max = 360.00003
+inherit_velocity_ratio = 1.0
+direction = Vector3(0, -1, 0)
+initial_velocity_max = 10.0
+
+[sub_resource type="QuadMesh" id="QuadMesh_oqwcg"]
+size = Vector2(0.1, 0.1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_a6664"]
+top_radius = 0.0
+height = 1.0
+
+[node name="Miracle" type="RigidBody3D" unique_id=830155579]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)
+mass = 2000.0
+gravity_scale = 0.0
+
+[node name="Mesh" parent="." unique_id=1064590795 instance=ExtResource("2_5wymp")]
+
+[node name="CollisionShape" type="CollisionShape3D" parent="." unique_id=1086364064]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8661804, -3.5527137e-15)
+shape = SubResource("CapsuleShape3D_1j0ab")
+
+[node name="ThrustController" type="Node3D" parent="." unique_id=1653808799]
+script = ExtResource("1_gftn0")
+thruster_paths = Array[NodePath]([NodePath("ThrusterPoint"), NodePath("ThrusterPoint2"), NodePath("ThrusterPoint3"), NodePath("ThrusterPoint4"), NodePath("ThrusterPoint5"), NodePath("ThrusterPoint6")])
+
+[node name="ThrusterPoint" parent="ThrustController" unique_id=1175108193 instance=ExtResource("3_3qc6s")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -3.3015192, 0)
+max_force = 2000.0
+
+[node name="ThrusterPoint2" type="Node3D" parent="ThrustController" unique_id=773362340]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 3.35, 1.408, -0.5566405)
+script = ExtResource("3_1j0ab")
+max_force = 100.0
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="ThrustController/ThrusterPoint2" unique_id=2017467377]
+emitting = false
+amount = 90
+lifetime = 1.5
+fixed_fps = 10
+local_coords = true
+transform_align = 1
+process_material = SubResource("ParticleProcessMaterial_xvgsr")
+draw_pass_1 = SubResource("QuadMesh_oqwcg")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ThrustController/ThrusterPoint2" unique_id=232005182]
+mesh = SubResource("CylinderMesh_a6664")
+
+[node name="ThrusterPoint3" type="Node3D" parent="ThrustController" unique_id=182385383]
+transform = Transform3D(-1.1188909e-08, 0.8234138, -0.5674414, -1, -1.8907738e-08, -7.718828e-09, -1.7084822e-08, 0.5674414, 0.8234138, -3.179714, 1.408, -0.557)
+script = ExtResource("3_1j0ab")
+max_force = 100.0
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="ThrustController/ThrusterPoint3" unique_id=2026227247]
+emitting = false
+amount = 90
+lifetime = 1.5
+fixed_fps = 10
+local_coords = true
+transform_align = 1
+process_material = SubResource("ParticleProcessMaterial_xvgsr")
+draw_pass_1 = SubResource("QuadMesh_oqwcg")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ThrustController/ThrusterPoint3" unique_id=1945658100]
+mesh = SubResource("CylinderMesh_a6664")
+
+[node name="ThrusterPoint4" type="Node3D" parent="ThrustController" unique_id=1304292750]
+transform = Transform3D(-1, 8.742278e-08, 0, -8.742278e-08, -1, 0, 0, 0, 1, 0, 5.693878, 0)
+script = ExtResource("3_1j0ab")
+max_force = 100.0
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="ThrustController/ThrusterPoint4" unique_id=1374292925]
+emitting = false
+amount = 90
+lifetime = 1.5
+fixed_fps = 10
+local_coords = true
+transform_align = 1
+process_material = SubResource("ParticleProcessMaterial_xvgsr")
+draw_pass_1 = SubResource("QuadMesh_oqwcg")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ThrustController/ThrusterPoint4" unique_id=2103282235]
+mesh = SubResource("CylinderMesh_a6664")
+
+[node name="ThrusterPoint5" type="Node3D" parent="ThrustController" unique_id=654295523]
+transform = Transform3D(1.9106855e-15, 4.371139e-08, 1, 1, -4.371139e-08, 0, 4.371139e-08, 1, -4.371139e-08, 0, 1.408, -3.3498988)
+script = ExtResource("3_1j0ab")
+max_force = 100.0
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="ThrustController/ThrusterPoint5" unique_id=1283039999]
+emitting = false
+amount = 90
+lifetime = 1.5
+fixed_fps = 10
+local_coords = true
+transform_align = 1
+process_material = SubResource("ParticleProcessMaterial_xvgsr")
+draw_pass_1 = SubResource("QuadMesh_oqwcg")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ThrustController/ThrusterPoint5" unique_id=560052054]
+mesh = SubResource("CylinderMesh_a6664")
+
+[node name="ThrusterPoint6" type="Node3D" parent="ThrustController" unique_id=946561644]
+transform = Transform3D(1.9106855e-15, -4.371139e-08, 1, -1, -4.371139e-08, 0, 4.371139e-08, -1, -4.371139e-08, 0, 2.6248162, 3.3498988)
+script = ExtResource("3_1j0ab")
+max_force = 100.0
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="ThrustController/ThrusterPoint6" unique_id=1796890533]
+emitting = false
+amount = 90
+lifetime = 1.5
+fixed_fps = 10
+local_coords = true
+transform_align = 1
+process_material = SubResource("ParticleProcessMaterial_xvgsr")
+draw_pass_1 = SubResource("QuadMesh_oqwcg")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ThrustController/ThrusterPoint6" unique_id=760721667]
+mesh = SubResource("CylinderMesh_a6664")
+
+[node name="ThrusterPoint7" type="Node3D" parent="ThrustController" unique_id=745331662]
+transform = Transform3D(-0.6525217, -0.7012416, 0.28718555, -0.75777, 0.6038447, -0.2472978, 3.312318e-08, -0.3789878, -0.9254017, 2.4614048, 2.624816, 1.9626503)
+script = ExtResource("3_1j0ab")
+max_force = 100.0
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="ThrustController/ThrusterPoint7" unique_id=2075034498]
+emitting = false
+amount = 90
+lifetime = 1.5
+fixed_fps = 10
+local_coords = true
+transform_align = 1
+process_material = SubResource("ParticleProcessMaterial_xvgsr")
+draw_pass_1 = SubResource("QuadMesh_oqwcg")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ThrustController/ThrusterPoint7" unique_id=1502768518]
+mesh = SubResource("CylinderMesh_a6664")
+
+[node name="ThrusterPoint8" type="Node3D" parent="ThrustController" unique_id=1618800865]
+transform = Transform3D(0.40692398, -0.2541224, 0.8774023, 0.7294786, 0.6685243, -0.14469458, -0.5497944, 0.6989258, 0.4574153, 2.4614048, 2.624816, -2.2395449)
+script = ExtResource("3_1j0ab")
+max_force = 100.0
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="ThrustController/ThrusterPoint8" unique_id=1022405601]
+emitting = false
+amount = 90
+lifetime = 1.5
+fixed_fps = 10
+local_coords = true
+transform_align = 1
+process_material = SubResource("ParticleProcessMaterial_xvgsr")
+draw_pass_1 = SubResource("QuadMesh_oqwcg")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ThrustController/ThrusterPoint8" unique_id=1935391631]
+mesh = SubResource("CylinderMesh_a6664")
+
+[node name="ThrusterPoint9" parent="ThrustController" unique_id=1081641556 instance=ExtResource("3_3qc6s")]
+transform = Transform3D(0.46811494, 0.8836676, -3.8626336e-08, -0.8836676, 0.46811494, 2.3249433e-08, 3.8626336e-08, 2.3249434e-08, 1, -2.8981466, -0.79854655, -1.09408404e-07)
+max_force = 2000.0
+
+[node name="Node" type="Node" parent="." unique_id=492666651]
+script = ExtResource("5_1j0ab")

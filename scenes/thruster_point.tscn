@@ -1,0 +1,41 @@
+[gd_scene format=3 uid="uid://uib80frhkad7"]
+
+[ext_resource type="Script" uid="uid://dioewqw1hclcl" path="res://scripts/thruster_point.gd" id="1_4muec"]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_xvgsr"]
+lifetime_randomness = 0.49
+angle_min = 1.0728835e-05
+angle_max = 360.00003
+inherit_velocity_ratio = 1.0
+direction = Vector3(0, -1, 0)
+initial_velocity_max = 10.0
+
+[sub_resource type="QuadMesh" id="QuadMesh_oqwcg"]
+size = Vector2(0.1, 0.1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_a6664"]
+top_radius = 0.0
+height = 1.0
+
+[node name="ThrusterPoint" type="Node3D" unique_id=1175108193]
+script = ExtResource("1_4muec")
+max_force = 100.0
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="." unique_id=1837301335]
+emitting = false
+amount = 90
+lifetime = 1.5
+fixed_fps = 10
+local_coords = true
+transform_align = 1
+process_material = SubResource("ParticleProcessMaterial_xvgsr")
+draw_pass_1 = SubResource("QuadMesh_oqwcg")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=864184478]
+mesh = SubResource("CylinderMesh_a6664")
+
+[node name="SpotLight3D" type="SpotLight3D" parent="." unique_id=76990744]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 0, 0)
+distance_fade_enabled = true
+distance_fade_begin = 3.0
+spot_angle = 32.52

@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://b05sahfvl3yoh"]
+
+[ext_resource type="PackedScene" uid="uid://bnc76bgry58jh" path="res://scenes/miracle.tscn" id="1_rysn1"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_rysn1"]
+
+[node name="Node3D" type="Node3D" unique_id=2040746514]
+
+[node name="Miracle" parent="." unique_id=1293576428 instance=ExtResource("1_rysn1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.365961, 0, -2.7939286)
+
+[node name="Camera3D" type="Camera3D" parent="Miracle" unique_id=1018083168]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 12.230465)
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=394601839]
+light_color = Color(1, 1, 0.8901961, 1)
+
+[node name="Stars1" type="DirectionalLight3D" parent="." unique_id=33730993]
+transform = Transform3D(-0.98996454, 0, 0.1413159, -0.1366972, 0.2535723, -0.957609, -0.0358338, -0.96731645, -0.25102758, 0, 0, 0)
+light_energy = 0.05
+
+[node name="Stars2" type="DirectionalLight3D" parent="." unique_id=1121732389]
+transform = Transform3D(-0.3191508, 0.3069123, -0.89663124, -0.5604963, 0.7017765, 0.43972015, 0.76419014, 0.6428955, -0.051949255, 0, 0, 0)
+light_energy = 0.05
+
+[node name="Stars3" type="DirectionalLight3D" parent="." unique_id=1721717885]
+transform = Transform3D(-0.22372392, -0.63952994, 0.73549247, -0.56049633, 0.70177656, 0.43972003, -0.79736537, -0.31386518, -0.51545835, 0, 0, 0)
+light_energy = 0.05
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1953258648]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.446865, 0, -41.18352)
+mesh = SubResource("CapsuleMesh_rysn1")

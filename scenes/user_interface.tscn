@@ -19,6 +19,79 @@ horizontal_value_label_path = NodePath("Controls/VBoxContainer/Horizontal/Value"
 vertical_value_label_path = NodePath("Controls/VBoxContainer/Vertical/Value")
 fore_value_label_path = NodePath("Controls/VBoxContainer/Fore/Value")
 
+[node name="GoalStatus" type="PanelContainer" parent="." unique_id=340449824]
+layout_mode = 1
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 188.0
+offset_bottom = 112.0
+
+[node name="MarginContainer" type="MarginContainer" parent="GoalStatus" unique_id=910143191]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="GoalStatus/MarginContainer" unique_id=837594592]
+layout_mode = 2
+
+[node name="Heading" type="Label" parent="GoalStatus/MarginContainer/VBoxContainer" unique_id=1883871166]
+layout_mode = 2
+text = "Goal"
+
+[node name="GoalRow" type="HBoxContainer" parent="GoalStatus/MarginContainer/VBoxContainer" unique_id=1742875218]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="GoalStatus/MarginContainer/VBoxContainer/GoalRow" unique_id=1220625994]
+layout_mode = 2
+text = "Status"
+
+[node name="Value" type="Label" parent="GoalStatus/MarginContainer/VBoxContainer/GoalRow" unique_id=1237684389]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "Pending"
+
+[node name="InsideRow" type="HBoxContainer" parent="GoalStatus/MarginContainer/VBoxContainer" unique_id=1639652698]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="GoalStatus/MarginContainer/VBoxContainer/InsideRow" unique_id=466802522]
+layout_mode = 2
+text = "Inside"
+
+[node name="Value" type="Label" parent="GoalStatus/MarginContainer/VBoxContainer/InsideRow" unique_id=636803826]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "No"
+
+[node name="RelativeSpeedRow" type="HBoxContainer" parent="GoalStatus/MarginContainer/VBoxContainer" unique_id=165459748]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="GoalStatus/MarginContainer/VBoxContainer/RelativeSpeedRow" unique_id=1949798172]
+layout_mode = 2
+text = "Rel Speed"
+
+[node name="Value" type="Label" parent="GoalStatus/MarginContainer/VBoxContainer/RelativeSpeedRow" unique_id=630533210]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "0.0 m/s"
+
+[node name="ThresholdRow" type="HBoxContainer" parent="GoalStatus/MarginContainer/VBoxContainer" unique_id=1723802549]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="GoalStatus/MarginContainer/VBoxContainer/ThresholdRow" unique_id=766226912]
+layout_mode = 2
+text = "Threshold"
+
+[node name="Value" type="Label" parent="GoalStatus/MarginContainer/VBoxContainer/ThresholdRow" unique_id=856745040]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "0.0 m/s"
+
 [node name="Controls" type="HBoxContainer" parent="." unique_id=1366659684]
 layout_mode = 1
 anchors_preset = 2

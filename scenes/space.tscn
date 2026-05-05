@@ -3,6 +3,22 @@
 [ext_resource type="PackedScene" uid="uid://bnc76bgry58jh" path="res://scenes/miracle.tscn" id="1_rysn1"]
 [ext_resource type="PackedScene" uid="uid://dxf01xcb5ghcy" path="res://scenes/user_interface.tscn" id="2_7q4ap"]
 [ext_resource type="Script" uid="uid://cbuhsuo1jg84i" path="res://scripts/camera_controller.gd" id="3_17jim"]
+[ext_resource type="Script" uid="uid://de4r7r7y4sqyl" path="res://scripts/goal_area.gd" id="4_b0dir"]
+[ext_resource type="Shader" uid="uid://cpnlek8wes66n" path="res://shaders/goal_box.gdshader" id="5_2wj6e"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_nkspm"]
+size = Vector3(30, 30, 30)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wi7yl"]
+size = Vector3(30, 30, 30)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7gqk0"]
+render_priority = 1
+shader = ExtResource("5_2wj6e")
+shader_parameter/line_color = Color(0.31764707, 0.9019608, 1, 0.95)
+shader_parameter/fill_color = Color(0.05882353, 0.16078432, 0.2, 0.08)
+shader_parameter/line_thickness = 0.08
+shader_parameter/emission_strength = 1.2
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_rysn1"]
 radius = 100.0
@@ -23,8 +39,23 @@ script = ExtResource("3_17jim")
 [node name="Camera3D" type="Camera3D" parent="Miracle/CameraPivot" unique_id=1018083168]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, -20)
 
-[node name="UserInterface" parent="." unique_id=889957040 node_paths=PackedStringArray("ship") instance=ExtResource("2_7q4ap")]
+[node name="GoalArea" type="Area3D" parent="." unique_id=567544899 node_paths=PackedStringArray("ship")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.59816, 39.741306, -160)
+script = ExtResource("4_b0dir")
 ship = NodePath("../Miracle")
+speed_threshold_mps = 5.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GoalArea" unique_id=1999214553]
+shape = SubResource("BoxShape3D_nkspm")
+
+[node name="GoalVisual" type="MeshInstance3D" parent="GoalArea" unique_id=808689746]
+cast_shadow = 0
+mesh = SubResource("BoxMesh_wi7yl")
+surface_material_override/0 = SubResource("ShaderMaterial_7gqk0")
+
+[node name="UserInterface" parent="." unique_id=889957040 node_paths=PackedStringArray("ship", "goal_area") instance=ExtResource("2_7q4ap")]
+ship = NodePath("../Miracle")
+goal_area = NodePath("../GoalArea")
 
 [node name="Sun" type="DirectionalLight3D" parent="." unique_id=394601839]
 light_color = Color(1, 1, 0.8901961, 1)

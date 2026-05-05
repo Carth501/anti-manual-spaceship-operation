@@ -2,6 +2,7 @@ class_name UIManager
 extends Control
 
 @export var ship: MiracleShip
+@export var goal_area: GoalArea
 @export var throttle_slider_path: NodePath = ^"VSlider"
 @export var throttle_label_path: NodePath = ^"Control/Label"
 @export var roll_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Roll/Value"
@@ -18,6 +19,10 @@ extends Control
 @export var angular_y_value_label_path: NodePath = ^"Velocities/Angular/YRow/Value"
 @export var angular_z_value_label_path: NodePath = ^"Velocities/Angular/ZRow/Value"
 @export var angular_total_value_label_path: NodePath = ^"Velocities/Angular/TotalRow/Value"
+@export var goal_status_value_label_path: NodePath = ^"GoalStatus/MarginContainer/VBoxContainer/GoalRow/Value"
+@export var goal_inside_value_label_path: NodePath = ^"GoalStatus/MarginContainer/VBoxContainer/InsideRow/Value"
+@export var goal_relative_speed_value_label_path: NodePath = ^"GoalStatus/MarginContainer/VBoxContainer/RelativeSpeedRow/Value"
+@export var goal_threshold_value_label_path: NodePath = ^"GoalStatus/MarginContainer/VBoxContainer/ThresholdRow/Value"
 
 var control_interface: ControlInterface
 var throttle_slider: VSlider
@@ -36,6 +41,10 @@ var angular_x_value_label: Label
 var angular_y_value_label: Label
 var angular_z_value_label: Label
 var angular_total_value_label: Label
+var goal_status_value_label: Label
+var goal_inside_value_label: Label
+var goal_relative_speed_value_label: Label
+var goal_threshold_value_label: Label
 
 
 func _ready() -> void:
@@ -60,10 +69,13 @@ func _ready() -> void:
 	angular_y_value_label = get_node_or_null(angular_y_value_label_path) as Label
 	angular_z_value_label = get_node_or_null(angular_z_value_label_path) as Label
 	angular_total_value_label = get_node_or_null(angular_total_value_label_path) as Label
+	goal_status_value_label = get_node_or_null(goal_status_value_label_path) as Label
+	goal_inside_value_label = get_node_or_null(goal_inside_value_label_path) as Label
+	goal_relative_speed_value_label = get_node_or_null(goal_relative_speed_value_label_path) as Label
+	goal_threshold_value_label = get_node_or_null(goal_threshold_value_label_path) as Label
 
 	if control_interface == null:
 		push_warning("UIManager could not resolve a ControlInterface from its ship")
-		return
 
 	if throttle_slider == null:
 		push_warning("UIManager could not find a VSlider at %s" % throttle_slider_path)
@@ -71,14 +83,24 @@ func _ready() -> void:
 	if throttle_label == null:
 		push_warning("UIManager could not find a Label at %s" % throttle_label_path)
 
-	if throttle_slider != null:
-		_configure_throttle_slider()
-		throttle_slider.value_changed.connect(_on_throttle_slider_changed)
-	control_interface.main_throttle_changed.connect(_on_main_throttle_changed)
-	control_interface.control_axes_changed.connect(_on_control_axes_changed)
-	_sync_ui_to_throttle()
-	_update_axis_labels(control_interface.get_control_axes())
+	if control_interface != null:
+		if throttle_slider != null:
+			_configure_throttle_slider()
+			throttle_slider.value_changed.connect(_on_throttle_slider_changed)
+		control_interface.main_throttle_changed.connect(_on_main_throttle_changed)
+		control_interface.control_axes_changed.connect(_on_control_axes_changed)
+		_sync_ui_to_throttle()
+		_update_axis_labels(control_interface.get_control_axes())
+
+	if goal_area != null:
+		goal_area.occupancy_changed.connect(_on_goal_state_changed)
+		goal_area.completion_changed.connect(_on_goal_completion_changed)
+		goal_area.relative_speed_changed.connect(_on_goal_relative_speed_changed)
+	else:
+		push_warning("UIManager is missing its goal area reference")
+
 	_update_velocity_labels()
+	_update_goal_labels()
 
 
 func _physics_process(_delta: float) -> void:
@@ -86,6 +108,7 @@ func _physics_process(_delta: float) -> void:
 		return
 
 	_update_velocity_labels()
+	_update_goal_labels()
 
 
 func _configure_throttle_slider() -> void:
@@ -95,6 +118,9 @@ func _configure_throttle_slider() -> void:
 
 
 func _sync_ui_to_throttle() -> void:
+	if control_interface == null:
+		return
+
 	var throttle_value := control_interface.get_main_throttle()
 	if throttle_slider != null:
 		throttle_slider.value = throttle_value
@@ -102,6 +128,9 @@ func _sync_ui_to_throttle() -> void:
 
 
 func _on_throttle_slider_changed(value: float) -> void:
+	if control_interface == null:
+		return
+
 	control_interface.set_main_throttle(value)
 
 
@@ -151,6 +180,43 @@ func _update_velocity_labels() -> void:
 	_update_signed_value_label(angular_y_value_label, angular_velocity.y, " rad/s")
 	_update_signed_value_label(angular_z_value_label, angular_velocity.z, " rad/s")
 	_update_unsigned_value_label(angular_total_value_label, angular_velocity.length(), " rad/s")
+
+
+func _update_goal_labels() -> void:
+	if goal_area == null:
+		_update_text_label(goal_status_value_label, "N/A")
+		_update_text_label(goal_inside_value_label, "--")
+		_update_text_label(goal_relative_speed_value_label, "--")
+		_update_text_label(goal_threshold_value_label, "--")
+		return
+
+	var relative_speed := goal_area.get_relative_speed()
+	var goal_status := "Complete" if goal_area.is_goal_completed() else "Pending"
+	var inside_status := "Yes" if goal_area.is_ship_inside() else "No"
+
+	_update_text_label(goal_status_value_label, goal_status)
+	_update_text_label(goal_inside_value_label, inside_status)
+	_update_unsigned_value_label(goal_relative_speed_value_label, relative_speed, " m/s")
+	_update_unsigned_value_label(goal_threshold_value_label, goal_area.speed_threshold_mps, " m/s")
+
+
+func _on_goal_state_changed(_is_inside: bool) -> void:
+	_update_goal_labels()
+
+
+func _on_goal_completion_changed(_is_completed: bool) -> void:
+	_update_goal_labels()
+
+
+func _on_goal_relative_speed_changed(_relative_speed: float) -> void:
+	_update_goal_labels()
+
+
+func _update_text_label(target_label: Label, value: String) -> void:
+	if target_label == null:
+		return
+
+	target_label.text = value
 
 
 func _update_signed_value_label(target_label: Label, value: float, suffix: String = "") -> void:

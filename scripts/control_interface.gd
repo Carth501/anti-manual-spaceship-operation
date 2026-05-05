@@ -2,6 +2,7 @@ class_name ControlInterface
 extends Node
 
 signal main_throttle_changed(value: float)
+signal control_axes_changed(values: Dictionary)
 
 @export var thruster_controller_path: NodePath = ^"../ThrustController"
 @export var local_right_axis: Vector3 = Vector3.RIGHT
@@ -16,6 +17,12 @@ signal main_throttle_changed(value: float)
 @export_range(0.0, 1.0, 0.01) var rotational_authority: float = 1.0
 
 var thruster_controller: ThrusterController
+var current_horizontal_input: float = 0.0
+var current_vertical_input: float = 0.0
+var current_fore_input: float = 0.0
+var current_pitch_input: float = 0.0
+var current_yaw_input: float = 0.0
+var current_roll_input: float = 0.0
 
 
 func _ready() -> void:
@@ -29,6 +36,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_update_main_throttle(delta)
+	_update_control_axes()
 	thruster_controller.set_input(_build_linear_request(), _build_angular_request())
 	thruster_controller.apply_current_forces()
 
@@ -52,28 +60,41 @@ func get_main_throttle() -> float:
 	return main_throttle
 
 
-func _build_linear_request() -> Vector3:
-	var lateral_x := Input.get_action_strength("Lateral_Right") - Input.get_action_strength("Lateral_Left")
-	var lateral_y := Input.get_action_strength("Lateral_Up") - Input.get_action_strength("Lateral_Down")
-	var forward_request := main_throttle
-	forward_request += Input.get_action_strength("Lateral_Forward")
-	forward_request -= Input.get_action_strength("Lateral_Back")
+func get_control_axes() -> Dictionary:
+	return {
+		"horizontal": current_horizontal_input,
+		"vertical": current_vertical_input,
+		"fore": current_fore_input,
+		"pitch": current_pitch_input,
+		"yaw": current_yaw_input,
+		"roll": current_roll_input,
+	}
 
-	var linear_request := _normalized_axis(local_right_axis) * lateral_x
-	linear_request += _normalized_axis(local_up_axis) * lateral_y
-	linear_request += _normalized_axis(local_forward_axis) * forward_request
+
+func _build_linear_request() -> Vector3:
+	var linear_request := _normalized_axis(local_right_axis) * current_horizontal_input
+	linear_request += _normalized_axis(local_up_axis) * current_vertical_input
+	linear_request += _normalized_axis(local_forward_axis) * current_fore_input
 	return linear_request.limit_length(1.0) * lateral_authority
 
 
 func _build_angular_request() -> Vector3:
-	var pitch_request := Input.get_action_strength("Pitch_Up") - Input.get_action_strength("Pitch_Down")
-	var yaw_request := Input.get_action_strength("Yaw_Left") - Input.get_action_strength("Yaw_Right")
-	var roll_request := Input.get_action_strength("Roll_Left") - Input.get_action_strength("Roll_Right")
-
-	var angular_request := _normalized_axis(local_pitch_axis) * pitch_request
-	angular_request += _normalized_axis(local_yaw_axis) * yaw_request
-	angular_request += _normalized_axis(local_roll_axis) * roll_request
+	var angular_request := _normalized_axis(local_pitch_axis) * current_pitch_input
+	angular_request += _normalized_axis(local_yaw_axis) * current_yaw_input
+	angular_request += _normalized_axis(local_roll_axis) * current_roll_input
 	return angular_request.limit_length(1.0) * rotational_authority
+
+
+func _update_control_axes() -> void:
+	current_horizontal_input = Input.get_action_strength("Lateral_Right") - Input.get_action_strength("Lateral_Left")
+	current_vertical_input = Input.get_action_strength("Lateral_Up") - Input.get_action_strength("Lateral_Down")
+	current_fore_input = main_throttle
+	current_fore_input += Input.get_action_strength("Lateral_Forward")
+	current_fore_input -= Input.get_action_strength("Lateral_Back")
+	current_pitch_input = Input.get_action_strength("Pitch_Up") - Input.get_action_strength("Pitch_Down")
+	current_yaw_input = Input.get_action_strength("Yaw_Left") - Input.get_action_strength("Yaw_Right")
+	current_roll_input = Input.get_action_strength("Roll_Left") - Input.get_action_strength("Roll_Right")
+	control_axes_changed.emit(get_control_axes())
 
 
 func _normalized_axis(axis: Vector3) -> Vector3:

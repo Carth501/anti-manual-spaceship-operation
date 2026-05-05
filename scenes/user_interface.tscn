@@ -10,34 +10,95 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_j8r0o")
-throttle_slider_path = NodePath("Control/VSlider")
+throttle_slider_path = NodePath("HBoxContainer/ThrusterControl/VSlider")
+throttle_label_path = NodePath("HBoxContainer/ThrusterControl/Label")
 
-[node name="Control" type="Control" parent="." unique_id=609721339]
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=1366659684]
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 17.0
-offset_top = -57.0
-offset_right = 57.0
-offset_bottom = -17.0
+offset_top = -137.0
+offset_right = 103.0
 grow_vertical = 0
+theme_override_constants/separation = 20
 
-[node name="VSlider" type="VSlider" parent="Control" unique_id=2091011137]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_top = -162.0
-offset_right = 16.0
-grow_vertical = 0
+[node name="ThrusterControl" type="HBoxContainer" parent="HBoxContainer" unique_id=172850374]
+layout_mode = 2
+alignment = 2
 
-[node name="Label" type="Label" parent="Control" unique_id=1481298198]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 19.0
-offset_top = -23.0
-offset_right = 59.0
-grow_vertical = 0
+[node name="VSlider" type="VSlider" parent="HBoxContainer/ThrusterControl" unique_id=2091011137]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HBoxContainer/ThrusterControl" unique_id=1481298198]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HBoxContainer" unique_id=154077265]
+layout_mode = 2
+
+[node name="Roll" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=850404601]
+layout_mode = 2
+
+[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Roll" unique_id=1263665586]
+layout_mode = 2
+text = "Roll"
+
+[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Roll" unique_id=102666881]
+layout_mode = 2
+text = "%#"
+
+[node name="Pitch" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=359368613]
+layout_mode = 2
+
+[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Pitch" unique_id=1118993848]
+layout_mode = 2
+text = "Pitch"
+
+[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Pitch" unique_id=103959793]
+layout_mode = 2
+text = "%#"
+
+[node name="Yaw" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=782456388]
+layout_mode = 2
+
+[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Yaw" unique_id=1567145709]
+layout_mode = 2
+text = "Yaw"
+
+[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Yaw" unique_id=1490093416]
+layout_mode = 2
+text = "%#"
+
+[node name="Horizontal" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=1802234531]
+layout_mode = 2
+
+[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Horizontal" unique_id=888680510]
+layout_mode = 2
+text = "Horizontal"
+
+[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Horizontal" unique_id=570608830]
+layout_mode = 2
+text = "%#"
+
+[node name="Verticle" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=686752964]
+layout_mode = 2
+
+[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Verticle" unique_id=1689269602]
+layout_mode = 2
+text = "Vertical"
+
+[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Verticle" unique_id=228444106]
+layout_mode = 2
+text = "%#"
+
+[node name="Fore" type="HBoxContainer" parent="HBoxContainer/VBoxContainer" unique_id=1164772468]
+layout_mode = 2
+
+[node name="Variable" type="Label" parent="HBoxContainer/VBoxContainer/Fore" unique_id=891551370]
+layout_mode = 2
+text = "Fore"
+
+[node name="Value" type="Label" parent="HBoxContainer/VBoxContainer/Fore" unique_id=111922249]
+layout_mode = 2
+text = "%#"

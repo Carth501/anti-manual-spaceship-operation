@@ -1,7 +1,7 @@
 class_name UIManager
 extends Control
 
-@export var control_interface_path: NodePath = ^"../Miracle/Node"
+@export var ship: MiracleShip
 @export var throttle_slider_path: NodePath = ^"VSlider"
 @export var throttle_label_path: NodePath = ^"Control/Label"
 @export var roll_value_label_path: NodePath = ^"HBoxContainer/VBoxContainer/Roll/Value"
@@ -23,7 +23,11 @@ var fore_value_label: Label
 
 
 func _ready() -> void:
-	control_interface = get_node_or_null(control_interface_path) as ControlInterface
+	if ship == null:
+		push_warning("UIManager is missing its ship reference")
+		return
+
+	control_interface = ship.get_control_interface()
 	throttle_slider = get_node_or_null(throttle_slider_path) as VSlider
 	throttle_label = get_node_or_null(throttle_label_path) as Label
 	roll_value_label = get_node_or_null(roll_value_label_path) as Label
@@ -34,7 +38,7 @@ func _ready() -> void:
 	fore_value_label = get_node_or_null(fore_value_label_path) as Label
 
 	if control_interface == null:
-		push_warning("UIManager could not find a ControlInterface at %s" % control_interface_path)
+		push_warning("UIManager could not resolve a ControlInterface from its ship")
 		return
 
 	if throttle_slider == null:

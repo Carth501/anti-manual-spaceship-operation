@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://dioewqw1hclcl" path="res://scripts/thruster_point.gd" id="3_1j0ab"]
 [ext_resource type="PackedScene" uid="uid://uib80frhkad7" path="res://scenes/thruster_point.tscn" id="3_3qc6s"]
 [ext_resource type="Script" uid="uid://cm3no0fkq30q3" path="res://scripts/control_interface.gd" id="5_1j0ab"]
+[ext_resource type="Script" uid="uid://c6mw104jcwtkf" path="res://scripts/miracle_ship.gd" id="6_fd3gq"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1j0ab"]
 radius = 3.0634766
@@ -25,10 +26,13 @@ size = Vector2(0.1, 0.1)
 top_radius = 0.0
 height = 1.0
 
-[node name="Miracle" type="RigidBody3D" unique_id=830155579]
+[node name="Miracle" type="RigidBody3D" unique_id=830155579 node_paths=PackedStringArray("thruster_controller", "control_interface")]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)
 mass = 2000.0
 gravity_scale = 0.0
+script = ExtResource("6_fd3gq")
+thruster_controller = NodePath("ThrustController")
+control_interface = NodePath("ControlInterface")
 
 [node name="Mesh" parent="." unique_id=1064590795 instance=ExtResource("2_5wymp")]
 
@@ -174,5 +178,6 @@ mesh = SubResource("CylinderMesh_a6664")
 transform = Transform3D(0.46811494, 0.8836676, -3.8626336e-08, -0.8836676, 0.46811494, 2.3249433e-08, 3.8626336e-08, 2.3249434e-08, 1, -2.8981466, -0.79854655, -1.09408404e-07)
 max_force = 2000.0
 
-[node name="Node" type="Node" parent="." unique_id=492666651]
+[node name="ControlInterface" type="Node" parent="." unique_id=492666651 node_paths=PackedStringArray("ship")]
 script = ExtResource("5_1j0ab")
+ship = NodePath("..")

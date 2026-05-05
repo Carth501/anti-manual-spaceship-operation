@@ -4,7 +4,7 @@ extends Node
 signal main_throttle_changed(value: float)
 signal control_axes_changed(values: Dictionary)
 
-@export var thruster_controller_path: NodePath = ^"../ThrustController"
+@export var ship: MiracleShip
 @export var local_right_axis: Vector3 = Vector3.RIGHT
 @export var local_up_axis: Vector3 = Vector3.BACK
 @export var local_forward_axis: Vector3 = Vector3.UP
@@ -26,9 +26,15 @@ var current_roll_input: float = 0.0
 
 
 func _ready() -> void:
-	thruster_controller = get_node_or_null(thruster_controller_path) as ThrusterController
+	if ship == null:
+		ship = get_parent() as MiracleShip
+	if ship == null:
+		push_warning("ControlInterface could not find a MiracleShip reference")
+		return
+
+	thruster_controller = ship.get_thruster_controller()
 	if thruster_controller == null:
-		push_warning("ControlInterface could not find a ThrusterController at %s" % thruster_controller_path)
+		push_warning("ControlInterface could not resolve a ThrusterController from its ship")
 
 
 func _physics_process(delta: float) -> void:

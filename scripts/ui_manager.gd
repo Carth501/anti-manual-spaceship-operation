@@ -142,26 +142,26 @@ func _update_velocity_labels() -> void:
 	var linear_velocity := ship.get_linear_velocity_readout()
 	var angular_velocity := ship.get_angular_velocity_readout()
 
-	_update_signed_value_label(linear_x_value_label, linear_velocity.x)
-	_update_signed_value_label(linear_y_value_label, linear_velocity.y)
-	_update_signed_value_label(linear_z_value_label, linear_velocity.z)
-	_update_unsigned_value_label(linear_total_value_label, linear_velocity.length())
+	_update_signed_value_label(linear_x_value_label, linear_velocity.x, " m/s")
+	_update_signed_value_label(linear_y_value_label, linear_velocity.y, " m/s")
+	_update_signed_value_label(linear_z_value_label, linear_velocity.z, " m/s")
+	_update_unsigned_value_label(linear_total_value_label, linear_velocity.length(), " m/s")
 
-	_update_signed_value_label(angular_x_value_label, angular_velocity.x)
-	_update_signed_value_label(angular_y_value_label, angular_velocity.y)
-	_update_signed_value_label(angular_z_value_label, angular_velocity.z)
-	_update_unsigned_value_label(angular_total_value_label, angular_velocity.length())
+	_update_signed_value_label(angular_x_value_label, angular_velocity.x, " rad/s")
+	_update_signed_value_label(angular_y_value_label, angular_velocity.y, " rad/s")
+	_update_signed_value_label(angular_z_value_label, angular_velocity.z, " rad/s")
+	_update_unsigned_value_label(angular_total_value_label, angular_velocity.length(), " rad/s")
 
 
-func _update_signed_value_label(target_label: Label, value: float) -> void:
+func _update_signed_value_label(target_label: Label, value: float, suffix: String = "") -> void:
 	if target_label == null:
 		return
 
-	target_label.text = "%+.1f" % value
+	target_label.text = "%+.1f%s" % [value, suffix]
 
 
-func _update_unsigned_value_label(target_label: Label, value: float) -> void:
+func _update_unsigned_value_label(target_label: Label, value: float, suffix: String = "") -> void:
 	if target_label == null:
 		return
 
-	target_label.text = "%.1f" % value
+	target_label.text = "%.1f%s" % [value, suffix]

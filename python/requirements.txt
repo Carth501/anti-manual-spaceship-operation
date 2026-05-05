@@ -1,0 +1,4 @@
+gymnasium>=0.29
+numpy>=1.26
+# stable-baselines3 support for Python 3.14 may lag behind CPython releases.
+stable-baselines3>=2.4; python_version < "3.14"

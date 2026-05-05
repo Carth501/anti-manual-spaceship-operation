@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://cbuhsuo1jg84i" path="res://scripts/camera_controller.gd" id="3_17jim"]
 [ext_resource type="Script" uid="uid://de4r7r7y4sqyl" path="res://scripts/goal_area.gd" id="4_b0dir"]
 [ext_resource type="Shader" uid="uid://cpnlek8wes66n" path="res://shaders/goal_box.gdshader" id="5_2wj6e"]
+[ext_resource type="Script" path="res://scripts/rl_bridge.gd" id="6_4th52"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_nkspm"]
 size = Vector3(30, 30, 30)
@@ -54,6 +55,11 @@ mesh = SubResource("BoxMesh_wi7yl")
 surface_material_override/0 = SubResource("ShaderMaterial_7gqk0")
 
 [node name="UserInterface" parent="." unique_id=889957040 node_paths=PackedStringArray("ship", "goal_area") instance=ExtResource("2_7q4ap")]
+ship = NodePath("../Miracle")
+goal_area = NodePath("../GoalArea")
+
+[node name="RLBridge" type="Node" parent="." unique_id=882240410 node_paths=PackedStringArray("ship", "goal_area")]
+script = ExtResource("6_4th52")
 ship = NodePath("../Miracle")
 goal_area = NodePath("../GoalArea")
 

@@ -183,6 +183,14 @@ class GodotThrusterEnv(gym.Env):
 		deadline = time.monotonic() + self.connect_timeout
 		last_error: OSError | None = None
 		while time.monotonic() < deadline:
+			if self._process is not None:
+				exit_code = self._process.poll()
+				if exit_code is not None:
+					raise RuntimeError(
+						"Godot exited before the RL bridge became available. "
+						f"Exit code: {exit_code}. Launch Godot directly to inspect startup errors."
+					)
+
 			try:
 				self._socket = socket.create_connection((self.host, self.port), timeout=1.0)
 				self._socket.settimeout(self.connect_timeout)
@@ -192,9 +200,10 @@ class GodotThrusterEnv(gym.Env):
 				last_error = exc
 				time.sleep(0.2)
 
-		raise TimeoutError(
-			f"Could not connect to Godot RL bridge at {self.host}:{self.port}"
-		) from last_error
+		timeout_message = f"Could not connect to Godot RL bridge at {self.host}:{self.port}"
+		if self.launch_project and not self.headless:
+			timeout_message += ". Watch mode can take longer to open; try --connect-timeout 90"
+		raise TimeoutError(timeout_message) from last_error
 
 	def _send_command(self, command: dict[str, Any]) -> dict[str, Any]:
 		if self._socket_file is None:

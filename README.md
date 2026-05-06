@@ -154,6 +154,12 @@ Watch mode opens the normal Godot window and slows down the step loop slightly s
 python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.05 --random-only --smoke-episodes 1 --smoke-steps 50
 ```
 
+If the first visible launch is slow and you hit a bridge timeout, retry with a longer startup window:
+
+```powershell
+python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.05 --connect-timeout 90 --random-only --smoke-episodes 1 --smoke-steps 50
+```
+
 Notes:
 
 - Watch mode is still using structured state observations over TCP.

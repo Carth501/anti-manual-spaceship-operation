@@ -177,6 +177,28 @@ If Godot is already open and the RL bridge is active, omit `--launch-project`:
 python python/train.py --random-only --smoke-episodes 1 --smoke-steps 50
 ```
 
+### Saved Policy Evaluation
+
+Once you have a saved PPO model, you can replay it through the same bridge without starting a new training run.
+
+Headless evaluation:
+
+```powershell
+python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --eval-model models/ppo_thruster_agent --eval-episodes 3 --eval-steps 300
+```
+
+Visible replay:
+
+```powershell
+python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.05 --eval-model models/ppo_thruster_agent --eval-episodes 3 --eval-steps 300
+```
+
+Notes:
+
+- Evaluation checks the saved model action and observation shapes against the live environment before rollout starts.
+- Use `--stochastic-eval` if you want sampled rather than deterministic actions.
+- `--log-steps`, `--log-step-details`, and `--log-jsonl` work during evaluation too.
+
 ## Training HUD
 
 When the normal game window is visible, the UI now shows a training panel with:
@@ -219,8 +241,6 @@ This panel is for debugging and inspection only. It does not affect the RL logic
 
 ## TODO
 
-- [ ] Add a slower visual evaluation mode for replaying a saved policy in the Godot window.
 - [ ] Add obstacle collision handling and fold it into the training curriculum.
-- [ ] Add saved-model evaluation and policy replay tooling.
 - [ ] Add a parser or plotter for JSONL step logs so reward, distance, and thruster usage can be graphed.
 - [ ] Add per-episode aggregate summaries such as mean throttle use, closest approach, and top-used thrusters.

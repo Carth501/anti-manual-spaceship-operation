@@ -13,6 +13,10 @@ import numpy as np
 from gymnasium import spaces
 
 
+BRIDGE_PROTOCOL_VERSION = 1
+OBSERVATION_FIXED_FIELDS = 12
+
+
 class GodotProtocolError(RuntimeError):
 	pass
 
@@ -75,9 +79,21 @@ class GodotThrusterEnv(gym.Env):
 
 		self._connect()
 		hello_response = self._send_command({"command": "hello"})
+		self.bridge_version = int(hello_response.get("version", -1))
+		if self.bridge_version != BRIDGE_PROTOCOL_VERSION:
+			raise GodotProtocolError(
+				f"Expected RL bridge protocol version {BRIDGE_PROTOCOL_VERSION}, got {self.bridge_version}"
+			)
+
 		self.thruster_count = int(hello_response["thruster_count"])
+		if self.thruster_count <= 0:
+			raise GodotProtocolError(
+				f"Expected a positive thruster count from the RL bridge, got {self.thruster_count}"
+			)
+
+		self.expected_observation_size = self.thruster_count + OBSERVATION_FIXED_FIELDS
 		self.default_action_frames = int(hello_response.get("default_action_frames", step_frames))
-		initial_observation = self._coerce_observation(hello_response["observation"])
+		initial_observation = self._coerce_observation(hello_response["observation"], context="hello")
 
 		self.action_space = spaces.Box(
 			low=0.0,
@@ -100,7 +116,7 @@ class GodotThrusterEnv(gym.Env):
 	) -> tuple[np.ndarray, dict[str, Any]]:
 		super().reset(seed=seed)
 		response = self._send_command({"command": "reset"})
-		observation = self._coerce_observation(response["observation"])
+		observation = self._coerce_observation(response["observation"], context="reset")
 		info = dict(response.get("info", {}))
 		if options:
 			info.update(options)
@@ -120,7 +136,7 @@ class GodotThrusterEnv(gym.Env):
 				"frames": self.step_frames,
 			}
 		)
-		observation = self._coerce_observation(response["observation"])
+		observation = self._coerce_observation(response["observation"], context="step")
 		reward = float(response["reward"])
 		done = bool(response["done"])
 		info = dict(response.get("info", {}))
@@ -224,6 +240,22 @@ class GodotThrusterEnv(gym.Env):
 			)
 		return response
 
-	@staticmethod
-	def _coerce_observation(raw_observation: list[float]) -> np.ndarray:
-		return np.asarray(raw_observation, dtype=np.float32)
+	def _coerce_observation(self, raw_observation: list[float], *, context: str) -> np.ndarray:
+		if not isinstance(raw_observation, list):
+			raise GodotProtocolError(
+				f"Expected {context} observation to be a JSON array, got {type(raw_observation).__name__}"
+			)
+
+		observation = np.asarray(raw_observation, dtype=np.float32).reshape(-1)
+		if observation.shape != (self.expected_observation_size,):
+			raise GodotProtocolError(
+				"Expected %s observation shape %s for %d thrusters, got %s"
+				% (
+					context,
+					(self.expected_observation_size,),
+					self.thruster_count,
+					observation.shape,
+				)
+			)
+
+		return observation

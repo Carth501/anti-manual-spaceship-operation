@@ -165,6 +165,9 @@ Notes:
 - Watch mode is still using structured state observations over TCP.
 - The agent is not learning from pixels.
 - Headless mode remains the better choice for long training runs.
+- Add `--log-steps` to print a concise per-step summary during smoke runs.
+- Add `--log-step-details` to print the full debug payload returned by `RLBridge`.
+- Add `--log-jsonl logs/random_smoke.jsonl` to capture one JSON object per step for later analysis.
 
 ### Connect to an Already Running Godot Instance
 

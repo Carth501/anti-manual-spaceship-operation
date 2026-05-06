@@ -19,6 +19,8 @@ extends Node
 @export_range(0.0, 10.0, 0.0001, "or_greater") var living_penalty_per_frame := 0.001
 @export_range(0.0, 10000.0, 0.1, "or_greater") var success_reward := 100.0
 @export_range(0.0, 10000.0, 0.1, "or_greater") var out_of_bounds_penalty := 25.0
+@export var emit_step_debug_logs := false
+@export_range(1, 10000, 1) var step_debug_log_interval := 1
 
 # Network state for the external trainer connection.
 var server := TCPServer.new()
@@ -33,6 +35,7 @@ var episode_index := -1
 var episode_reward_total := 0.0
 var last_step_reward := 0.0
 var last_terminal_reason := "idle"
+var last_action_values: Array[float] = []
 var previous_goal_distance := 0.0
 var pending_step_frames := 0
 var pending_action_frames := 0
@@ -177,6 +180,7 @@ func _begin_step(command: Dictionary) -> void:
 	# The Python side sends one throttle value per thruster. We hand those values
 	# directly to the ship and defer the response until physics has advanced.
 	var action_values := _coerce_float_array(command.get("action", []))
+	last_action_values = action_values.duplicate()
 	control_interface.set_rl_control_enabled(true)
 	control_interface.set_rl_thruster_inputs(action_values)
 	pending_action_frames = max(int(command.get("frames", default_action_frames)), 1)
@@ -207,8 +211,11 @@ func _complete_step() -> void:
 	last_step_reward = total_reward
 	episode_reward_total += total_reward
 	last_terminal_reason = terminal_reason
+	var debug_snapshot := _build_step_debug_snapshot(reward_terms, total_reward, terminal_reason)
+	if emit_step_debug_logs and episode_frames % max(step_debug_log_interval, 1) == 0:
+		_print_step_debug_snapshot(debug_snapshot)
 	previous_goal_distance = _get_goal_distance()
-	_send_response(_build_step_response(total_reward, done, terminal_reason, reward_terms))
+	_send_response(_build_step_response(total_reward, done, terminal_reason, reward_terms, debug_snapshot))
 
 
 func _reset_episode_state() -> void:
@@ -218,6 +225,7 @@ func _reset_episode_state() -> void:
 	episode_reward_total = 0.0
 	last_step_reward = 0.0
 	last_terminal_reason = "reset"
+	last_action_values.clear()
 	control_interface.set_rl_control_enabled(true)
 	control_interface.set_rl_thruster_inputs([])
 	ship.reset_state()
@@ -252,7 +260,8 @@ func _build_step_response(
 		reward: float,
 		done: bool,
 		terminal_reason: String,
-		reward_terms: Dictionary = {}
+		reward_terms: Dictionary = {},
+		debug_snapshot: Dictionary = {}
 	) -> Dictionary:
 	return {
 		"ok": true,
@@ -267,6 +276,7 @@ func _build_step_response(
 			"is_inside_goal": goal_area.is_ship_inside(),
 			"is_goal_completed": goal_area.is_goal_completed(),
 			"reward_terms": reward_terms,
+			"debug": debug_snapshot,
 		},
 	}
 
@@ -333,6 +343,41 @@ func get_training_hud_state() -> Dictionary:
 		"last_step_reward": last_step_reward,
 		"last_terminal_reason": last_terminal_reason,
 	}
+
+
+func _build_step_debug_snapshot(reward_terms: Dictionary, total_reward: float, terminal_reason: String) -> Dictionary:
+	var goal_offset_local := ship.get_local_vector(goal_area.global_position - ship.global_position)
+	var linear_velocity_local := ship.get_local_vector(ship.get_linear_velocity_readout())
+	var angular_velocity_local := ship.get_local_vector(ship.get_angular_velocity_readout())
+	var applied_throttles := ship.get_thruster_controller().get_current_throttles()
+	var throttle_sum := 0.0
+	var throttle_max := 0.0
+	for throttle_value in applied_throttles:
+		throttle_sum += throttle_value
+		throttle_max = max(throttle_max, throttle_value)
+
+	return {
+		"episode_index": max(episode_index, 0),
+		"episode_frames": episode_frames,
+		"action_request": last_action_values.duplicate(),
+		"applied_throttles": applied_throttles,
+		"throttle_sum": throttle_sum,
+		"throttle_max": throttle_max,
+		"goal_offset_local": [goal_offset_local.x, goal_offset_local.y, goal_offset_local.z],
+		"linear_velocity_local": [linear_velocity_local.x, linear_velocity_local.y, linear_velocity_local.z],
+		"angular_velocity_local": [angular_velocity_local.x, angular_velocity_local.y, angular_velocity_local.z],
+		"goal_distance": _get_goal_distance(),
+		"relative_speed": goal_area.get_relative_speed(),
+		"is_inside_goal": goal_area.is_ship_inside(),
+		"is_goal_completed": goal_area.is_goal_completed(),
+		"reward_terms": reward_terms,
+		"reward_total": total_reward,
+		"terminal_reason": terminal_reason,
+	}
+
+
+func _print_step_debug_snapshot(debug_snapshot: Dictionary) -> void:
+	print("[RLBridge] %s" % JSON.stringify(debug_snapshot))
 
 
 func is_trainer_connected() -> bool:

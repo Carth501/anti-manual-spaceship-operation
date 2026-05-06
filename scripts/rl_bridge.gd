@@ -13,12 +13,15 @@ extends Node
 @export_range(1, 60, 1) var default_action_frames := 4
 @export_range(1, 100000, 1) var episode_frame_limit := 2400
 @export_range(0.0, 100000.0, 0.1, "or_greater") var training_boundary_radius := 1500.0
-@export_range(0.0, 100.0, 0.001, "or_greater") var progress_reward_scale := 0.05
+@export_range(0.0, 100.0, 0.001, "or_greater") var progress_reward_scale := 0.5
 @export_range(0.0, 100.0, 0.001, "or_greater") var speed_penalty_scale := 0.02
-@export_range(0.0, 100.0, 0.001, "or_greater") var thruster_penalty_scale := 0.01
+@export_range(0.0, 100000.0, 0.1, "or_greater") var speed_penalty_distance := 60.0
+@export_range(0.0, 100.0, 0.001, "or_greater") var thruster_penalty_scale := 0.001
 @export_range(0.0, 10.0, 0.0001, "or_greater") var living_penalty_per_frame := 0.001
-@export_range(0.0, 10000.0, 0.1, "or_greater") var success_reward := 100.0
+@export_range(0.0, 10000.0, 0.1, "or_greater") var goal_zone_entry_bonus := 20.0
+@export_range(0.0, 10000.0, 0.1, "or_greater") var success_reward := 150.0
 @export_range(0.0, 10000.0, 0.1, "or_greater") var out_of_bounds_penalty := 25.0
+@export_range(0.0, 10000.0, 0.1, "or_greater") var timeout_penalty := 15.0
 @export var emit_step_debug_logs := false
 @export_range(1, 10000, 1) var step_debug_log_interval := 1
 
@@ -37,6 +40,7 @@ var last_step_reward := 0.0
 var last_terminal_reason := "idle"
 var last_action_values: Array[float] = []
 var previous_goal_distance := 0.0
+var previous_inside_goal := false
 var pending_step_frames := 0
 var pending_action_frames := 0
 var spawn_origin := Vector3.ZERO
@@ -192,21 +196,40 @@ func _complete_step() -> void:
 	# Reward is dense shaping plus terminal bonuses/penalties. This is the point
 	# where one logical env.step() finishes and we answer the Python client.
 	var reward_terms := _compute_reward_terms()
-	var total_reward: float = float(reward_terms.get("total", 0.0))
+	var total_reward: float = float(reward_terms.get("dense_total", 0.0))
 	var done := false
 	var terminal_reason := "in_progress"
+	var current_inside_goal := goal_area.is_ship_inside()
+	var goal_entry_bonus := 0.0
+	var applied_success_bonus := 0.0
+	var applied_out_of_bounds_penalty := 0.0
+	var applied_timeout_penalty := 0.0
+
+	if current_inside_goal and not previous_inside_goal:
+		goal_entry_bonus = goal_zone_entry_bonus
+		total_reward += goal_entry_bonus
 
 	if goal_area.is_goal_completed():
-		total_reward += success_reward
+		applied_success_bonus = success_reward
+		total_reward += applied_success_bonus
 		done = true
 		terminal_reason = "goal_reached"
 	elif _is_out_of_bounds():
-		total_reward -= out_of_bounds_penalty
+		applied_out_of_bounds_penalty = out_of_bounds_penalty
+		total_reward -= applied_out_of_bounds_penalty
 		done = true
 		terminal_reason = "out_of_bounds"
 	elif episode_frames >= episode_frame_limit:
+		applied_timeout_penalty = timeout_penalty
+		total_reward -= applied_timeout_penalty
 		done = true
 		terminal_reason = "timeout"
+
+	reward_terms["goal_entry_bonus"] = goal_entry_bonus
+	reward_terms["success_bonus"] = applied_success_bonus
+	reward_terms["out_of_bounds_penalty"] = applied_out_of_bounds_penalty
+	reward_terms["timeout_penalty"] = applied_timeout_penalty
+	reward_terms["total"] = total_reward
 
 	last_step_reward = total_reward
 	episode_reward_total += total_reward
@@ -215,6 +238,7 @@ func _complete_step() -> void:
 	if emit_step_debug_logs and episode_frames % max(step_debug_log_interval, 1) == 0:
 		_print_step_debug_snapshot(debug_snapshot)
 	previous_goal_distance = _get_goal_distance()
+	previous_inside_goal = current_inside_goal
 	_send_response(_build_step_response(total_reward, done, terminal_reason, reward_terms, debug_snapshot))
 
 
@@ -233,6 +257,7 @@ func _reset_episode_state() -> void:
 	goal_area.refresh_goal_state()
 	episode_frames = 0
 	previous_goal_distance = _get_goal_distance()
+	previous_inside_goal = goal_area.is_ship_inside()
 	pending_step_frames = 0
 	pending_action_frames = 0
 
@@ -285,8 +310,10 @@ func _compute_reward_terms() -> Dictionary:
 	# These terms are intentionally simple for the first curriculum:
 	# move toward the goal, keep relative speed low, and avoid wasting thrust.
 	var current_goal_distance := _get_goal_distance()
-	var progress_reward := (previous_goal_distance - current_goal_distance) * progress_reward_scale
-	var speed_penalty := goal_area.get_relative_speed() * speed_penalty_scale
+	var goal_distance_delta := previous_goal_distance - current_goal_distance
+	var progress_reward := goal_distance_delta * progress_reward_scale
+	var speed_penalty_weight := _get_speed_penalty_weight(current_goal_distance)
+	var speed_penalty := goal_area.get_relative_speed() * speed_penalty_scale * speed_penalty_weight
 	var throttles := ship.get_thruster_controller().get_current_throttles()
 	var throttle_sum := 0.0
 	for throttle_value in throttles:
@@ -296,12 +323,25 @@ func _compute_reward_terms() -> Dictionary:
 	var total_reward := progress_reward - speed_penalty - thruster_penalty - living_penalty
 
 	return {
+		"goal_distance_delta": goal_distance_delta,
 		"progress": progress_reward,
 		"speed_penalty": speed_penalty,
+		"speed_penalty_weight": speed_penalty_weight,
 		"thruster_penalty": thruster_penalty,
 		"living_penalty": living_penalty,
+		"dense_total": total_reward,
 		"total": total_reward,
 	}
+
+
+func _get_speed_penalty_weight(goal_distance: float) -> float:
+	if goal_area.is_ship_inside():
+		return 1.0
+
+	if speed_penalty_distance <= 0.0:
+		return 1.0
+
+	return clamp(1.0 - (goal_distance / speed_penalty_distance), 0.0, 1.0)
 
 
 func _get_observation() -> Array[float]:

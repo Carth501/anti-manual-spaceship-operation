@@ -202,6 +202,100 @@ Notes:
 - Use `--stochastic-eval` if you want sampled rather than deterministic actions.
 - `--log-steps`, `--log-step-details`, and `--log-jsonl` work during evaluation too.
 
+## Baseline Training
+
+The first useful PPO run for this project should stay simple:
+
+- use the fixed-start docking task that already exists in the scene
+- train headless for speed
+- keep the pre-training smoke phase short
+- save a checkpoint that you can replay in watch mode afterward
+
+Recommended baseline command:
+
+```powershell
+python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --smoke-episodes 1 --smoke-steps 8 --timesteps 100000 --ppo-n-steps 256 --ppo-batch-size 64 --model-output models/ppo_baseline
+```
+
+What this does:
+
+- runs one short random smoke episode first so the bridge is exercised before PPO starts
+- trains PPO for 100,000 timesteps with a modest rollout size
+- writes the saved model to `models/ppo_baseline.zip`
+- writes per-episode PPO training summaries to `logs/ppo_baseline_training.jsonl` by default
+
+Each PPO training JSONL record includes:
+
+- episode reward total
+- episode step and frame counts
+- terminal reason or incomplete-training marker
+- final goal distance and relative speed
+- aggregated reward terms for that episode
+
+If you want a different training-log path, pass `--training-log-jsonl`.
+
+For a quick training smoke test instead of a real baseline, reduce the timesteps and rollout size:
+
+```powershell
+python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --smoke-episodes 1 --smoke-steps 8 --timesteps 64 --ppo-n-steps 32 --ppo-batch-size 32 --model-output models/ppo_smoke_agent
+```
+
+### Can I Watch?
+
+Yes, but watch mode is mainly for inspection, not for the main long run.
+
+Visible training:
+
+```powershell
+python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.02 --smoke-episodes 1 --smoke-steps 8 --timesteps 100000 --ppo-n-steps 256 --ppo-batch-size 64 --model-output models/ppo_baseline_watch
+```
+
+Recommended workflow:
+
+1. Train headless.
+2. Save a checkpoint.
+3. Replay the saved model in watch mode.
+
+Example replay command:
+
+```powershell
+python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.05 --eval-model models/ppo_baseline.zip --eval-episodes 3 --eval-steps 300
+```
+
+### What To Watch In The Results
+
+During PPO training, Stable-Baselines3 prints periodic summaries. The most useful fields for a first pass are:
+
+- `total_timesteps`: confirms training is still advancing
+- `fps`: rough throughput of the training loop
+- `approx_kl`: how aggressively the policy is changing between updates
+- `clip_fraction`: how often PPO clipping is active; this helps indicate whether updates are too mild or too aggressive
+- `entropy_loss`: a rough proxy for policy randomness; very high exploration should reduce over time
+- `policy_gradient_loss`: policy update signal
+- `value_loss`: critic fit quality; large unstable jumps can indicate reward-scaling or learning instability
+- `explained_variance`: critic usefulness; for this project, it may stay noisy early and is more useful as a trend than a target number
+
+Also pay attention to the episode summaries printed by this project before or during evaluation:
+
+- total episode reward
+- terminal reason such as `goal_reached`, `out_of_bounds`, `timeout`, or `max_steps`
+- final goal distance
+- final relative speed
+
+For the first baseline, useful signs of progress are:
+
+- total reward becomes less negative or starts trending positive on some episodes
+- more episodes end closer to the goal
+- fewer episodes end far away or immediately drift out of bounds
+- replayed checkpoints show more directed movement instead of random thruster use
+
+Signs that the reward or training setup likely still needs work:
+
+- almost every episode times out with little change in behavior
+- the ship spins or jitters in place without approaching the goal
+- the policy saturates many thrusters continuously
+- reward looks flat even though the motion visibly changes
+
 ## Training HUD
 
 When the normal game window is visible, the UI now shows a training panel with:
@@ -223,6 +317,7 @@ This panel is for debugging and inspection only. It does not affect the RL logic
 - The current default step size is 4 physics frames per action.
 - The environment is currently single-instance and local.
 - The recommended training interpreter for this repo is Python 3.13 in `.venv313`.
+- `--ppo-n-steps` and `--ppo-batch-size` exist mainly so short PPO smoke tests and modest baseline runs are easier to control from the CLI.
 
 ## Project Layout
 

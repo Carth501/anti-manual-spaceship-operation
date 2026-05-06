@@ -61,6 +61,11 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument("--smoke-steps", type=int, default=300)
 	parser.add_argument("--timesteps", type=int, default=100_000)
 	parser.add_argument(
+		"--training-log-jsonl",
+		default=None,
+		help="Write per-episode PPO training summaries to this JSONL file. Defaults to logs/<model_name>_training.jsonl.",
+	)
+	parser.add_argument(
 		"--ppo-n-steps",
 		type=int,
 		default=256,
@@ -74,6 +79,11 @@ def parse_args() -> argparse.Namespace:
 	)
 	parser.add_argument("--model-output", default="models/ppo_thruster_agent")
 	return parser.parse_args()
+
+
+def _default_training_log_path(model_output: str) -> Path:
+	model_path = Path(model_output)
+	return Path("logs") / f"{model_path.stem}_training.jsonl"
 
 
 def build_env(args: argparse.Namespace) -> GodotThrusterEnv:
@@ -181,17 +191,114 @@ def run_ppo_training(
 	model_output: str,
 	ppo_n_steps: int,
 	ppo_batch_size: int,
+	training_log_jsonl: str | None,
 ) -> None:
 	try:
 		from stable_baselines3 import PPO
+		from stable_baselines3.common.callbacks import BaseCallback
 	except ImportError as exc:
 		raise SystemExit(
 			"stable-baselines3 is not installed. Start with --random-only, or install a supported RL stack. "
 			"If Python 3.14 package support lags, use Python 3.12 or 3.13 for training."
 		) from exc
 
+	class EpisodeRewardLogger(BaseCallback):
+		def __init__(self, log_path: Path) -> None:
+			super().__init__(verbose=0)
+			self.log_path = log_path
+			self.log_file = None
+			self.episode_index = 0
+			self.episode_reward_total = 0.0
+			self.episode_step_count = 0
+			self.episode_reward_terms: dict[str, float] = {}
+			self.last_info: dict[str, object] = {}
+
+		def _on_training_start(self) -> None:
+			self.log_path.parent.mkdir(parents=True, exist_ok=True)
+			self.log_file = self.log_path.open("w", encoding="utf-8")
+			print("training_log_jsonl=%s" % self.log_path.as_posix())
+
+		def _on_step(self) -> bool:
+			rewards = self.locals.get("rewards")
+			dones = self.locals.get("dones")
+			infos = self.locals.get("infos")
+			if rewards is None or dones is None or infos is None or len(infos) == 0:
+				return True
+
+			reward = float(rewards[0])
+			done = bool(dones[0])
+			info = dict(infos[0] or {})
+			self.last_info = info
+			reward_terms = dict(info.get("reward_terms", {}))
+
+			self.episode_reward_total += reward
+			self.episode_step_count += 1
+			for key, value in reward_terms.items():
+				if isinstance(value, (int, float)):
+					self.episode_reward_terms[key] = self.episode_reward_terms.get(key, 0.0) + float(value)
+
+			if not done:
+				return True
+
+			record = {
+				"episode": self.episode_index,
+				"timesteps": self.num_timesteps,
+				"episode_total_reward": self.episode_reward_total,
+				"episode_steps": self.episode_step_count,
+				"episode_frames": int(info.get("episode_frames", 0)),
+				"terminal_reason": info.get("terminal_reason", "unknown"),
+				"goal_distance": float(info.get("goal_distance", 0.0)),
+				"relative_speed": float(info.get("relative_speed", 0.0)),
+				"is_goal_completed": bool(info.get("is_goal_completed", False)),
+				"is_inside_goal": bool(info.get("is_inside_goal", False)),
+				"reward_terms": self.episode_reward_terms,
+			}
+			self.log_file.write(json.dumps(record) + "\n")
+			self.log_file.flush()
+			print(
+				"train_episode=%d steps=%d reward=%.3f reason=%s goal_distance=%.3f relative_speed=%.3f"
+				% (
+					self.episode_index,
+					self.episode_step_count,
+					self.episode_reward_total,
+					info.get("terminal_reason", "unknown"),
+					float(info.get("goal_distance", 0.0)),
+					float(info.get("relative_speed", 0.0)),
+				)
+			)
+
+			self.episode_index += 1
+			self.episode_reward_total = 0.0
+			self.episode_step_count = 0
+			self.episode_reward_terms = {}
+			self.last_info = {}
+			return True
+
+		def _on_training_end(self) -> None:
+			if self.log_file is not None:
+				if self.episode_step_count > 0:
+					record = {
+						"episode": self.episode_index,
+						"timesteps": self.num_timesteps,
+						"episode_total_reward": self.episode_reward_total,
+						"episode_steps": self.episode_step_count,
+						"episode_frames": int(self.last_info.get("episode_frames", 0)),
+						"terminal_reason": self.last_info.get("terminal_reason", "training_stopped"),
+						"goal_distance": float(self.last_info.get("goal_distance", 0.0)),
+						"relative_speed": float(self.last_info.get("relative_speed", 0.0)),
+						"is_goal_completed": bool(self.last_info.get("is_goal_completed", False)),
+						"is_inside_goal": bool(self.last_info.get("is_inside_goal", False)),
+						"completed_episode": False,
+						"reward_terms": self.episode_reward_terms,
+					}
+					self.log_file.write(json.dumps(record) + "\n")
+					self.log_file.flush()
+				self.log_file.close()
+				self.log_file = None
+
 	output_path = Path(model_output)
 	output_path.parent.mkdir(parents=True, exist_ok=True)
+	training_log_path = Path(training_log_jsonl) if training_log_jsonl else _default_training_log_path(model_output)
 	rollout_steps = max(int(ppo_n_steps), 2)
 	batch_size = max(int(ppo_batch_size), 2)
 	batch_size = min(batch_size, rollout_steps)
@@ -202,7 +309,7 @@ def run_ppo_training(
 		n_steps=rollout_steps,
 		batch_size=batch_size,
 	)
-	model.learn(total_timesteps=timesteps)
+	model.learn(total_timesteps=timesteps, callback=EpisodeRewardLogger(training_log_path))
 	model.save(output_path.as_posix())
 
 
@@ -364,6 +471,7 @@ def main() -> None:
 			model_output=args.model_output,
 			ppo_n_steps=args.ppo_n_steps,
 			ppo_batch_size=args.ppo_batch_size,
+			training_log_jsonl=args.training_log_jsonl,
 		)
 	finally:
 		env.close()

@@ -157,7 +157,7 @@ func _begin_step(command: Dictionary) -> void:
 
 func _complete_step() -> void:
 	var reward_terms := _compute_reward_terms()
-	var total_reward := reward_terms.get("total", 0.0)
+	var total_reward: float = float(reward_terms.get("total", 0.0))
 	var done := false
 	var terminal_reason := "in_progress"
 

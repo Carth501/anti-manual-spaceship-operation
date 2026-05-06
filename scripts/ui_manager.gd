@@ -239,9 +239,9 @@ func _update_training_labels() -> void:
 		return
 
 	var training_state := rl_bridge.get_training_hud_state()
-	var is_connected := bool(training_state.get("connected", false))
+	var trainer_connected := bool(training_state.get("connected", false))
 
-	_update_text_label(training_connection_value_label, "Connected" if is_connected else "Waiting")
+	_update_text_label(training_connection_value_label, "Connected" if trainer_connected else "Waiting")
 	_update_text_label(training_phase_value_label, _humanize_status_text(String(training_state.get("phase", "idle"))))
 	_update_text_label(training_episode_value_label, str(int(training_state.get("episode_index", 0))))
 	_update_text_label(training_frames_value_label, str(int(training_state.get("episode_frames", 0))))

@@ -60,6 +60,18 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument("--smoke-episodes", type=int, default=3)
 	parser.add_argument("--smoke-steps", type=int, default=300)
 	parser.add_argument("--timesteps", type=int, default=100_000)
+	parser.add_argument(
+		"--ppo-n-steps",
+		type=int,
+		default=256,
+		help="Rollout length for PPO. Lower this for short training smoke tests.",
+	)
+	parser.add_argument(
+		"--ppo-batch-size",
+		type=int,
+		default=64,
+		help="Batch size for PPO updates.",
+	)
 	parser.add_argument("--model-output", default="models/ppo_thruster_agent")
 	return parser.parse_args()
 
@@ -163,7 +175,13 @@ def run_random_smoke(
 			jsonl_file.close()
 
 
-def run_ppo_training(env: GodotThrusterEnv, timesteps: int, model_output: str) -> None:
+def run_ppo_training(
+	env: GodotThrusterEnv,
+	timesteps: int,
+	model_output: str,
+	ppo_n_steps: int,
+	ppo_batch_size: int,
+) -> None:
 	try:
 		from stable_baselines3 import PPO
 	except ImportError as exc:
@@ -174,7 +192,16 @@ def run_ppo_training(env: GodotThrusterEnv, timesteps: int, model_output: str) -
 
 	output_path = Path(model_output)
 	output_path.parent.mkdir(parents=True, exist_ok=True)
-	model = PPO("MlpPolicy", env, verbose=1)
+	rollout_steps = max(int(ppo_n_steps), 2)
+	batch_size = max(int(ppo_batch_size), 2)
+	batch_size = min(batch_size, rollout_steps)
+	model = PPO(
+		"MlpPolicy",
+		env,
+		verbose=1,
+		n_steps=rollout_steps,
+		batch_size=batch_size,
+	)
 	model.learn(total_timesteps=timesteps)
 	model.save(output_path.as_posix())
 
@@ -331,7 +358,13 @@ def main() -> None:
 		if args.random_only:
 			return
 
-		run_ppo_training(env, timesteps=args.timesteps, model_output=args.model_output)
+		run_ppo_training(
+			env,
+			timesteps=args.timesteps,
+			model_output=args.model_output,
+			ppo_n_steps=args.ppo_n_steps,
+			ppo_batch_size=args.ppo_batch_size,
+		)
 	finally:
 		env.close()
 

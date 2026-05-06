@@ -3,3 +3,7 @@
 /android/
 *.jsonl
 *.pyc
+.venv/
+.venv313/
+.venv*/
+models/

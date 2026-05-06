@@ -109,10 +109,13 @@ C:\Users\carth\Godot\Godot 4.6
 Windows PowerShell example:
 
 ```powershell
-python -m venv .venv
+py -3.13 -m venv .venv313
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-.\.venv\Scripts\Activate.ps1
+.\.venv313\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 ```
+
+If you already have an older repo-local environment, keep it isolated and use `.venv313` for RL training and policy evaluation.
 
 ### 2. Install Python Dependencies
 
@@ -219,6 +222,7 @@ This panel is for debugging and inspection only. It does not affect the RL logic
 - The PPO path lives in `python/train.py` and expects Stable-Baselines3 to be importable.
 - The current default step size is 4 physics frames per action.
 - The environment is currently single-instance and local.
+- The recommended training interpreter for this repo is Python 3.13 in `.venv313`.
 
 ## Project Layout
 

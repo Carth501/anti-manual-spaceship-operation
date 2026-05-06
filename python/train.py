@@ -16,6 +16,17 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument("--launch-project", action="store_true")
 	parser.add_argument("--godot-executable", default=None)
 	parser.add_argument("--no-headless", action="store_true")
+	parser.add_argument(
+		"--watch",
+		action="store_true",
+		help="Open the Godot window while training and optionally slow steps so you can watch.",
+	)
+	parser.add_argument(
+		"--watch-step-delay",
+		type=float,
+		default=0.05,
+		help="Extra delay in seconds after each env step when --watch is enabled.",
+	)
 	parser.add_argument("--connect-timeout", type=float, default=30.0)
 	parser.add_argument("--random-only", action="store_true")
 	parser.add_argument("--smoke-episodes", type=int, default=3)
@@ -26,13 +37,15 @@ def parse_args() -> argparse.Namespace:
 
 
 def build_env(args: argparse.Namespace) -> GodotThrusterEnv:
+	watch_mode = args.watch
 	return GodotThrusterEnv(
 		host=args.host,
 		port=args.port,
 		step_frames=args.frames_per_step,
 		launch_project=args.launch_project,
 		godot_executable=args.godot_executable,
-		headless=not args.no_headless,
+		headless=not (args.no_headless or watch_mode),
+		realtime_delay=args.watch_step_delay if watch_mode else 0.0,
 		connect_timeout=args.connect_timeout,
 	)
 

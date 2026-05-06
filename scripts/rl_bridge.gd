@@ -1,6 +1,10 @@
 class_name RLBridge
 extends Node
 
+# RLBridge turns the current scene into a small synchronous RL environment.
+# A Python process connects over TCP, sends line-delimited JSON commands,
+# and receives observation/reward/done payloads back from Godot.
+
 @export var ship: MiracleShip
 @export var goal_area: GoalArea
 @export var auto_start_server := true
@@ -16,11 +20,19 @@ extends Node
 @export_range(0.0, 10000.0, 0.1, "or_greater") var success_reward := 100.0
 @export_range(0.0, 10000.0, 0.1, "or_greater") var out_of_bounds_penalty := 25.0
 
+# Network state for the external trainer connection.
 var server := TCPServer.new()
 var client: StreamPeerTCP
 var control_interface: ControlInterface
 var receive_buffer := ""
+
+# Episode bookkeeping. A single Python `step` holds one thruster action for
+# `pending_action_frames` physics ticks before we compute reward and respond.
 var episode_frames := 0
+var episode_index := -1
+var episode_reward_total := 0.0
+var last_step_reward := 0.0
+var last_terminal_reason := "idle"
 var previous_goal_distance := 0.0
 var pending_step_frames := 0
 var pending_action_frames := 0
@@ -56,12 +68,16 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
+	# Poll networking in the regular process loop so socket I/O stays responsive
+	# even when physics is paused waiting for the next external command.
 	_poll_server()
 	if pending_step_frames == 0:
 		_poll_client_messages()
 
 
 func _physics_process(_delta: float) -> void:
+	# Physics stepping is what makes this feel like a Gym environment: the last
+	# action stays latched for N physics frames, then we emit one response.
 	if pending_step_frames <= 0:
 		return
 
@@ -91,6 +107,7 @@ func _poll_server() -> void:
 	if server.is_connection_available():
 		client = server.take_connection()
 		receive_buffer = ""
+		last_terminal_reason = "connected"
 
 
 func _poll_client_messages() -> void:
@@ -102,6 +119,7 @@ func _poll_client_messages() -> void:
 		_release_rl_control()
 		client = null
 		receive_buffer = ""
+		last_terminal_reason = "disconnected"
 		return
 
 	var available_bytes := client.get_available_bytes()
@@ -109,6 +127,8 @@ func _poll_client_messages() -> void:
 		return
 
 	receive_buffer += client.get_utf8_string(available_bytes)
+	# Messages are newline-delimited JSON objects. We accumulate bytes until we
+	# can carve out one full command at a time.
 	var separator_index := receive_buffer.find("\n")
 	while separator_index >= 0:
 		var message := receive_buffer.substr(0, separator_index).strip_edges()
@@ -119,6 +139,11 @@ func _poll_client_messages() -> void:
 
 
 func _handle_message(message: String) -> void:
+	# Supported commands mirror a minimal RL API:
+	# - hello: discover schema and action count
+	# - reset: reset the episode and fetch the initial observation
+	# - step: apply one action for a fixed number of physics frames
+	# - close: disconnect the external trainer cleanly
 	var parsed_message = JSON.parse_string(message)
 	if typeof(parsed_message) != TYPE_DICTIONARY:
 		_send_error("invalid_json", "Expected a JSON object command")
@@ -136,6 +161,7 @@ func _handle_message(message: String) -> void:
 		"close":
 			_send_response({"ok": true})
 			_release_rl_control()
+			last_terminal_reason = "closed"
 			client.disconnect_from_host()
 			client = null
 			receive_buffer = ""
@@ -148,14 +174,19 @@ func _begin_step(command: Dictionary) -> void:
 		_send_error("busy", "A step is already in progress")
 		return
 
+	# The Python side sends one throttle value per thruster. We hand those values
+	# directly to the ship and defer the response until physics has advanced.
 	var action_values := _coerce_float_array(command.get("action", []))
 	control_interface.set_rl_control_enabled(true)
 	control_interface.set_rl_thruster_inputs(action_values)
 	pending_action_frames = max(int(command.get("frames", default_action_frames)), 1)
 	pending_step_frames = pending_action_frames
+	last_terminal_reason = "stepping"
 
 
 func _complete_step() -> void:
+	# Reward is dense shaping plus terminal bonuses/penalties. This is the point
+	# where one logical env.step() finishes and we answer the Python client.
 	var reward_terms := _compute_reward_terms()
 	var total_reward: float = float(reward_terms.get("total", 0.0))
 	var done := false
@@ -173,11 +204,20 @@ func _complete_step() -> void:
 		done = true
 		terminal_reason = "timeout"
 
+	last_step_reward = total_reward
+	episode_reward_total += total_reward
+	last_terminal_reason = terminal_reason
 	previous_goal_distance = _get_goal_distance()
 	_send_response(_build_step_response(total_reward, done, terminal_reason, reward_terms))
 
 
 func _reset_episode_state() -> void:
+	# Reset makes the scene deterministic again: restore the ship pose, zero out
+	# thrusters and velocities, clear goal state, and restart episode counters.
+	episode_index += 1
+	episode_reward_total = 0.0
+	last_step_reward = 0.0
+	last_terminal_reason = "reset"
 	control_interface.set_rl_control_enabled(true)
 	control_interface.set_rl_thruster_inputs([])
 	ship.reset_state()
@@ -197,6 +237,8 @@ func _release_rl_control() -> void:
 
 
 func _build_hello_response() -> Dictionary:
+	# `hello` lets the Python wrapper discover how many thrusters/actions exist
+	# in the current scene before it constructs Gym spaces.
 	return {
 		"ok": true,
 		"version": 1,
@@ -230,6 +272,8 @@ func _build_step_response(
 
 
 func _compute_reward_terms() -> Dictionary:
+	# These terms are intentionally simple for the first curriculum:
+	# move toward the goal, keep relative speed low, and avoid wasting thrust.
 	var current_goal_distance := _get_goal_distance()
 	var progress_reward := (previous_goal_distance - current_goal_distance) * progress_reward_scale
 	var speed_penalty := goal_area.get_relative_speed() * speed_penalty_scale
@@ -251,6 +295,10 @@ func _compute_reward_terms() -> Dictionary:
 
 
 func _get_observation() -> Array[float]:
+	# The observation is expressed mostly in ship-local coordinates so the policy
+	# learns relative control effects instead of memorizing world orientation.
+	# Layout: goal offset, linear velocity, angular velocity, per-thruster
+	# throttles, inside-goal flag, goal-complete flag.
 	var goal_offset_local := ship.get_local_vector(goal_area.global_position - ship.global_position)
 	var linear_velocity_local := ship.get_local_vector(ship.get_linear_velocity_readout())
 	var angular_velocity_local := ship.get_local_vector(ship.get_angular_velocity_readout())
@@ -273,6 +321,32 @@ func _get_observation() -> Array[float]:
 	observation.append(1.0 if goal_area.is_ship_inside() else 0.0)
 	observation.append(1.0 if goal_area.is_goal_completed() else 0.0)
 	return observation
+
+
+func get_training_hud_state() -> Dictionary:
+	return {
+		"connected": is_trainer_connected(),
+		"phase": _get_training_phase(),
+		"episode_index": max(episode_index, 0),
+		"episode_frames": episode_frames,
+		"episode_reward_total": episode_reward_total,
+		"last_step_reward": last_step_reward,
+		"last_terminal_reason": last_terminal_reason,
+	}
+
+
+func is_trainer_connected() -> bool:
+	return client != null and client.get_status() == StreamPeerTCP.STATUS_CONNECTED
+
+
+func _get_training_phase() -> String:
+	if pending_step_frames > 0:
+		return "stepping"
+
+	if is_trainer_connected():
+		return "waiting_command"
+
+	return "idle"
 
 
 func _get_goal_distance() -> float:

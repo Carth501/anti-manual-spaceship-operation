@@ -49,6 +49,7 @@ class GodotThrusterEnv(gym.Env):
 		launch_project: bool = False,
 		godot_executable: str | None = None,
 		headless: bool = True,
+		realtime_delay: float = 0.0,
 		connect_timeout: float = 30.0,
 		project_path: str | Path | None = None,
 	) -> None:
@@ -61,6 +62,7 @@ class GodotThrusterEnv(gym.Env):
 			godot_executable or os.environ.get("GODOT_BIN")
 		)
 		self.headless = headless
+		self.realtime_delay = max(float(realtime_delay), 0.0)
 		self.connect_timeout = connect_timeout
 		self.project_path = Path(project_path or Path(__file__).resolve().parents[1])
 
@@ -125,6 +127,8 @@ class GodotThrusterEnv(gym.Env):
 		terminal_reason = str(info.get("terminal_reason", ""))
 		terminated = done and terminal_reason != "timeout"
 		truncated = done and terminal_reason == "timeout"
+		if self.realtime_delay > 0.0:
+			time.sleep(self.realtime_delay)
 		return observation, reward, terminated, truncated, info
 
 	def close(self) -> None:
@@ -161,6 +165,9 @@ class GodotThrusterEnv(gym.Env):
 		command = [self.godot_executable]
 		if self.headless:
 			command.append("--headless")
+		# Without --headless Godot opens its normal game window, which is useful
+		# for watching the agent train even though observations still come from
+		# the structured TCP bridge rather than rendered pixels.
 		command.extend(["--path", str(self.project_path)])
 
 		creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)

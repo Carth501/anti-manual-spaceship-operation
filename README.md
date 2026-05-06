@@ -222,3 +222,5 @@ This panel is for debugging and inspection only. It does not affect the RL logic
 - [ ] Add a slower visual evaluation mode for replaying a saved policy in the Godot window.
 - [ ] Add obstacle collision handling and fold it into the training curriculum.
 - [ ] Add saved-model evaluation and policy replay tooling.
+- [ ] Add a parser or plotter for JSONL step logs so reward, distance, and thruster usage can be graphed.
+- [ ] Add per-episode aggregate summaries such as mean throttle use, closest approach, and top-used thrusters.

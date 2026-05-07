@@ -63,6 +63,8 @@ Current observation layout:
 6. Inside-goal flag
 7. Goal-complete flag
 
+Note: the current observation still does not include explicit thruster geometry features such as each thruster's fixed force direction or torque contribution. The policy is still expected to infer that mapping from interaction, and exposing those geometry terms remains a useful future improvement if direct per-thruster learning stays sample-inefficient.
+
 ### Reward Shaping
 
 The current reward is a simple shaped signal for the first docking curriculum:
@@ -314,7 +316,8 @@ This panel is for debugging and inspection only. It does not affect the RL logic
 
 - The script currently runs a short random-policy smoke phase before optional PPO training.
 - The PPO path lives in `python/train.py` and expects Stable-Baselines3 to be importable.
-- The current default step size is 4 physics frames per action.
+- The current default step size is 8 physics frames per action.
+- Direct thruster commands are now slew-limited so RL control targets change smoothly instead of teleporting from one throttle value to another in a single physics tick.
 - The environment is currently single-instance and local.
 - The recommended training interpreter for this repo is Python 3.13 in `.venv313`.
 - `--ppo-n-steps` and `--ppo-batch-size` exist mainly so short PPO smoke tests and modest baseline runs are easier to control from the CLI.

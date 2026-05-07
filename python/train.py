@@ -13,7 +13,7 @@ def parse_args() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description="Train or smoke-test the Godot thruster RL environment.")
 	parser.add_argument("--host", default="127.0.0.1")
 	parser.add_argument("--port", type=int, default=8765)
-	parser.add_argument("--frames-per-step", type=int, default=4)
+	parser.add_argument("--frames-per-step", type=int, default=8)
 	parser.add_argument("--launch-project", action="store_true")
 	parser.add_argument("--godot-executable", default=None)
 	parser.add_argument("--no-headless", action="store_true")

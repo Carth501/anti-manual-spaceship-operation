@@ -4,6 +4,7 @@ extends Node3D
 @export var center_of_mass_local: Vector3 = Vector3.ZERO
 @export var rigid_body_path: NodePath = ^".."
 @export var thruster_paths: Array[NodePath] = []
+@export_range(0.0, 100.0, 0.01, "or_greater") var direct_throttle_slew_rate := 8.0
 
 var current_linear_request: Vector3 = Vector3.ZERO
 var current_angular_request: Vector3 = Vector3.ZERO
@@ -43,15 +44,19 @@ func set_input(local_linear_request: Vector3, local_angular_request: Vector3) ->
 	_update_thrusters()
 
 
-func set_direct_throttles(throttle_values: Array[float]) -> void:
+func set_direct_throttles(throttle_values: Array[float], physics_delta: float = 0.0) -> void:
 	direct_thruster_mode_enabled = true
 	current_linear_request = Vector3.ZERO
 	current_angular_request = Vector3.ZERO
+	var use_slew_limit := physics_delta > 0.0 and direct_throttle_slew_rate > 0.0
+	var max_throttle_delta := direct_throttle_slew_rate * physics_delta
 
 	for index in thrusters.size():
 		var target_throttle := 0.0
 		if index < throttle_values.size():
 			target_throttle = throttle_values[index]
+		if use_slew_limit:
+			target_throttle = move_toward(thrusters[index].current_throttle, target_throttle, max_throttle_delta)
 		thrusters[index].set_throttle(target_throttle)
 
 

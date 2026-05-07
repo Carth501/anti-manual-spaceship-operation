@@ -50,7 +50,7 @@ func _physics_process(delta: float) -> void:
 
 	if input_mode == InputMode.RL_DIRECT_THRUSTERS:
 		_set_control_axes(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-		thruster_controller.set_direct_throttles(rl_thruster_inputs)
+		thruster_controller.set_direct_throttles(rl_thruster_inputs, delta)
 	else:
 		_update_main_throttle(delta)
 		_update_control_axes()

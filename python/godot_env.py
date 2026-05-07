@@ -49,7 +49,7 @@ class GodotThrusterEnv(gym.Env):
 		self,
 		host: str = "127.0.0.1",
 		port: int = 8765,
-		step_frames: int = 4,
+		step_frames: int = 8,
 		launch_project: bool = False,
 		godot_executable: str | None = None,
 		headless: bool = True,

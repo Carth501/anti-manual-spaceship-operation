@@ -10,7 +10,7 @@ extends Node
 @export var auto_start_server := true
 @export var listen_host := "127.0.0.1"
 @export_range(1024, 65535, 1) var listen_port := 8765
-@export_range(1, 60, 1) var default_action_frames := 4
+@export_range(1, 60, 1) var default_action_frames := 8
 @export_range(1, 100000, 1) var episode_frame_limit := 2400
 @export_range(0.0, 100000.0, 0.1, "or_greater") var training_boundary_radius := 1500.0
 @export_range(0.0, 100.0, 0.001, "or_greater") var progress_reward_scale := 0.5

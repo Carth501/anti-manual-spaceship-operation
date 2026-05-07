@@ -14,6 +14,8 @@ extends Node
 @export_range(1, 100000, 1) var episode_frame_limit := 2400
 @export_range(0.0, 100000.0, 0.1, "or_greater") var training_boundary_radius := 1500.0
 @export_range(0.0, 100.0, 0.001, "or_greater") var progress_reward_scale := 0.5
+@export_range(0.0, 100000.0, 0.1, "or_greater") var approach_bonus_radius := 120.0
+@export_range(0.0, 1000.0, 0.001, "or_greater") var approach_bonus_scale := 25.0
 @export_range(0.0, 100.0, 0.001, "or_greater") var speed_penalty_scale := 0.02
 @export_range(0.0, 100000.0, 0.1, "or_greater") var speed_penalty_distance := 60.0
 @export_range(0.0, 100.0, 0.001, "or_greater") var thruster_penalty_scale := 0.001
@@ -312,6 +314,9 @@ func _compute_reward_terms() -> Dictionary:
 	var current_goal_distance := _get_goal_distance()
 	var goal_distance_delta := previous_goal_distance - current_goal_distance
 	var progress_reward := goal_distance_delta * progress_reward_scale
+	var previous_goal_potential := _compute_goal_potential(previous_goal_distance)
+	var current_goal_potential := _compute_goal_potential(current_goal_distance)
+	var approach_bonus := (current_goal_potential - previous_goal_potential) * approach_bonus_scale
 	var speed_penalty_weight := _get_speed_penalty_weight(current_goal_distance)
 	var speed_penalty := goal_area.get_relative_speed() * speed_penalty_scale * speed_penalty_weight
 	var throttles := ship.get_thruster_controller().get_current_throttles()
@@ -320,11 +325,14 @@ func _compute_reward_terms() -> Dictionary:
 		throttle_sum += throttle_value
 	var thruster_penalty := throttle_sum * thruster_penalty_scale
 	var living_penalty := float(max(pending_action_frames, 1)) * living_penalty_per_frame
-	var total_reward := progress_reward - speed_penalty - thruster_penalty - living_penalty
+	var total_reward := progress_reward + approach_bonus - speed_penalty - thruster_penalty - living_penalty
 
 	return {
 		"goal_distance_delta": goal_distance_delta,
+		"previous_goal_potential": previous_goal_potential,
+		"current_goal_potential": current_goal_potential,
 		"progress": progress_reward,
+		"approach_bonus": approach_bonus,
 		"speed_penalty": speed_penalty,
 		"speed_penalty_weight": speed_penalty_weight,
 		"thruster_penalty": thruster_penalty,
@@ -332,6 +340,13 @@ func _compute_reward_terms() -> Dictionary:
 		"dense_total": total_reward,
 		"total": total_reward,
 	}
+
+
+func _compute_goal_potential(goal_distance: float) -> float:
+	if approach_bonus_radius <= 0.0:
+		return 0.0
+
+	return exp(-goal_distance / approach_bonus_radius)
 
 
 func _get_speed_penalty_weight(goal_distance: float) -> float:

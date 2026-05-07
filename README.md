@@ -247,7 +247,7 @@ Yes, but watch mode is mainly for inspection, not for the main long run.
 Visible training:
 
 ```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.02 --smoke-episodes 1 --smoke-steps 8 --timesteps 100000 --ppo-n-steps 256 --ppo-batch-size 64 --model-output models/ppo_baseline_watch
+& ".\.venv313\Scripts\python.exe" python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.02 --smoke-episodes 1 --smoke-steps 8 --timesteps 100000 --ppo-n-steps 256 --ppo-batch-size 64 --model-output models/ppo_baseline_watch
 ```
 
 Recommended workflow:

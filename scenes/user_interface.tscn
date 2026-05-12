@@ -26,6 +26,122 @@ offset_top = 8.0
 offset_right = 188.0
 offset_bottom = 112.0
 
+[node name="TrainingStatus" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -238.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 170.0
+grow_horizontal = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="TrainingStatus"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="TrainingStatus/MarginContainer"]
+layout_mode = 2
+
+[node name="Heading" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Training"
+
+[node name="ConnectionRow" type="HBoxContainer" parent="TrainingStatus/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/ConnectionRow"]
+layout_mode = 2
+text = "Trainer"
+
+[node name="Value" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/ConnectionRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "Waiting"
+
+[node name="PhaseRow" type="HBoxContainer" parent="TrainingStatus/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/PhaseRow"]
+layout_mode = 2
+text = "Phase"
+
+[node name="Value" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/PhaseRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "Idle"
+
+[node name="EpisodeRow" type="HBoxContainer" parent="TrainingStatus/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/EpisodeRow"]
+layout_mode = 2
+text = "Episode"
+
+[node name="Value" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/EpisodeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "0"
+
+[node name="FramesRow" type="HBoxContainer" parent="TrainingStatus/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/FramesRow"]
+layout_mode = 2
+text = "Frames"
+
+[node name="Value" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/FramesRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "0"
+
+[node name="TotalRewardRow" type="HBoxContainer" parent="TrainingStatus/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/TotalRewardRow"]
+layout_mode = 2
+text = "Total R"
+
+[node name="Value" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/TotalRewardRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "+0.0"
+
+[node name="StepRewardRow" type="HBoxContainer" parent="TrainingStatus/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/StepRewardRow"]
+layout_mode = 2
+text = "Step R"
+
+[node name="Value" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/StepRewardRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "+0.0"
+
+[node name="ReasonRow" type="HBoxContainer" parent="TrainingStatus/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/ReasonRow"]
+layout_mode = 2
+text = "Last"
+
+[node name="Value" type="Label" parent="TrainingStatus/MarginContainer/VBoxContainer/ReasonRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "Reset"
+
 [node name="MarginContainer" type="MarginContainer" parent="GoalStatus" unique_id=910143191]
 layout_mode = 2
 theme_override_constants/margin_left = 8

@@ -4,6 +4,11 @@ extends Node
 signal main_throttle_changed(value: float)
 signal control_axes_changed(values: Dictionary)
 
+enum InputMode {
+	PLAYER,
+	RL_DIRECT_THRUSTERS,
+}
+
 @export var ship: MiracleShip
 @export var local_right_axis: Vector3 = Vector3.RIGHT
 @export var local_up_axis: Vector3 = Vector3.BACK
@@ -23,6 +28,8 @@ var current_fore_input: float = 0.0
 var current_pitch_input: float = 0.0
 var current_yaw_input: float = 0.0
 var current_roll_input: float = 0.0
+var input_mode: InputMode = InputMode.PLAYER
+var rl_thruster_inputs: Array[float] = []
 
 
 func _ready() -> void:
@@ -41,9 +48,14 @@ func _physics_process(delta: float) -> void:
 	if thruster_controller == null:
 		return
 
-	_update_main_throttle(delta)
-	_update_control_axes()
-	thruster_controller.set_input(_build_linear_request(), _build_angular_request())
+	if input_mode == InputMode.RL_DIRECT_THRUSTERS:
+		_set_control_axes(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+		thruster_controller.set_direct_throttles(rl_thruster_inputs, delta)
+	else:
+		_update_main_throttle(delta)
+		_update_control_axes()
+		thruster_controller.set_input(_build_linear_request(), _build_angular_request())
+
 	thruster_controller.apply_current_forces()
 
 
@@ -64,6 +76,25 @@ func set_main_throttle(value: float) -> void:
 
 func get_main_throttle() -> float:
 	return main_throttle
+
+
+func set_rl_control_enabled(enabled: bool) -> void:
+	input_mode = InputMode.RL_DIRECT_THRUSTERS if enabled else InputMode.PLAYER
+	if enabled:
+		_set_control_axes(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+		return
+
+	rl_thruster_inputs.clear()
+	thruster_controller.stop_all()
+
+
+func is_rl_control_enabled() -> bool:
+	return input_mode == InputMode.RL_DIRECT_THRUSTERS
+
+
+func set_rl_thruster_inputs(throttle_values: Array[float]) -> void:
+	input_mode = InputMode.RL_DIRECT_THRUSTERS
+	rl_thruster_inputs = throttle_values.duplicate()
 
 
 func get_control_axes() -> Dictionary:
@@ -92,14 +123,38 @@ func _build_angular_request() -> Vector3:
 
 
 func _update_control_axes() -> void:
-	current_horizontal_input = Input.get_action_strength("Lateral_Right") - Input.get_action_strength("Lateral_Left")
-	current_vertical_input = Input.get_action_strength("Lateral_Up") - Input.get_action_strength("Lateral_Down")
-	current_fore_input = main_throttle
-	current_fore_input += Input.get_action_strength("Lateral_Forward")
-	current_fore_input -= Input.get_action_strength("Lateral_Back")
-	current_pitch_input = Input.get_action_strength("Pitch_Up") - Input.get_action_strength("Pitch_Down")
-	current_yaw_input = Input.get_action_strength("Yaw_Left") - Input.get_action_strength("Yaw_Right")
-	current_roll_input = Input.get_action_strength("Roll_Left") - Input.get_action_strength("Roll_Right")
+	_set_control_axes(
+		Input.get_action_strength("Lateral_Right") - Input.get_action_strength("Lateral_Left"),
+		Input.get_action_strength("Lateral_Up") - Input.get_action_strength("Lateral_Down"),
+		main_throttle + Input.get_action_strength("Lateral_Forward") - Input.get_action_strength("Lateral_Back"),
+		Input.get_action_strength("Pitch_Up") - Input.get_action_strength("Pitch_Down"),
+		Input.get_action_strength("Yaw_Left") - Input.get_action_strength("Yaw_Right"),
+		Input.get_action_strength("Roll_Left") - Input.get_action_strength("Roll_Right")
+	)
+
+
+func _set_control_axes(
+		horizontal: float,
+		vertical: float,
+		fore: float,
+		pitch: float,
+		yaw: float,
+		roll: float
+	) -> void:
+	if is_equal_approx(current_horizontal_input, horizontal) \
+			and is_equal_approx(current_vertical_input, vertical) \
+			and is_equal_approx(current_fore_input, fore) \
+			and is_equal_approx(current_pitch_input, pitch) \
+			and is_equal_approx(current_yaw_input, yaw) \
+			and is_equal_approx(current_roll_input, roll):
+		return
+
+	current_horizontal_input = horizontal
+	current_vertical_input = vertical
+	current_fore_input = fore
+	current_pitch_input = pitch
+	current_yaw_input = yaw
+	current_roll_input = roll
 	control_axes_changed.emit(get_control_axes())
 
 

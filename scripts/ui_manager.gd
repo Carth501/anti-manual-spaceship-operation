@@ -23,8 +23,16 @@ extends Control
 @export var goal_inside_value_label_path: NodePath = ^"GoalStatus/MarginContainer/VBoxContainer/InsideRow/Value"
 @export var goal_relative_speed_value_label_path: NodePath = ^"GoalStatus/MarginContainer/VBoxContainer/RelativeSpeedRow/Value"
 @export var goal_threshold_value_label_path: NodePath = ^"GoalStatus/MarginContainer/VBoxContainer/ThresholdRow/Value"
+@export var training_connection_value_label_path: NodePath = ^"TrainingStatus/MarginContainer/VBoxContainer/ConnectionRow/Value"
+@export var training_phase_value_label_path: NodePath = ^"TrainingStatus/MarginContainer/VBoxContainer/PhaseRow/Value"
+@export var training_episode_value_label_path: NodePath = ^"TrainingStatus/MarginContainer/VBoxContainer/EpisodeRow/Value"
+@export var training_frames_value_label_path: NodePath = ^"TrainingStatus/MarginContainer/VBoxContainer/FramesRow/Value"
+@export var training_total_reward_value_label_path: NodePath = ^"TrainingStatus/MarginContainer/VBoxContainer/TotalRewardRow/Value"
+@export var training_step_reward_value_label_path: NodePath = ^"TrainingStatus/MarginContainer/VBoxContainer/StepRewardRow/Value"
+@export var training_reason_value_label_path: NodePath = ^"TrainingStatus/MarginContainer/VBoxContainer/ReasonRow/Value"
  
 var control_interface: ControlInterface
+var rl_bridge: RLBridge
 var throttle_slider: VSlider
 var throttle_label: Label
 var roll_value_label: Label
@@ -45,6 +53,13 @@ var goal_status_value_label: Label
 var goal_inside_value_label: Label
 var goal_relative_speed_value_label: Label
 var goal_threshold_value_label: Label
+var training_connection_value_label: Label
+var training_phase_value_label: Label
+var training_episode_value_label: Label
+var training_frames_value_label: Label
+var training_total_reward_value_label: Label
+var training_step_reward_value_label: Label
+var training_reason_value_label: Label
 
 
 func _ready() -> void:
@@ -53,6 +68,9 @@ func _ready() -> void:
 		return
 
 	control_interface = ship.get_control_interface()
+	var parent_node := get_parent()
+	if parent_node != null:
+		rl_bridge = parent_node.get_node_or_null("RLBridge") as RLBridge
 	throttle_slider = get_node_or_null(throttle_slider_path) as VSlider
 	throttle_label = get_node_or_null(throttle_label_path) as Label
 	roll_value_label = get_node_or_null(roll_value_label_path) as Label
@@ -73,6 +91,13 @@ func _ready() -> void:
 	goal_inside_value_label = get_node_or_null(goal_inside_value_label_path) as Label
 	goal_relative_speed_value_label = get_node_or_null(goal_relative_speed_value_label_path) as Label
 	goal_threshold_value_label = get_node_or_null(goal_threshold_value_label_path) as Label
+	training_connection_value_label = get_node_or_null(training_connection_value_label_path) as Label
+	training_phase_value_label = get_node_or_null(training_phase_value_label_path) as Label
+	training_episode_value_label = get_node_or_null(training_episode_value_label_path) as Label
+	training_frames_value_label = get_node_or_null(training_frames_value_label_path) as Label
+	training_total_reward_value_label = get_node_or_null(training_total_reward_value_label_path) as Label
+	training_step_reward_value_label = get_node_or_null(training_step_reward_value_label_path) as Label
+	training_reason_value_label = get_node_or_null(training_reason_value_label_path) as Label
 
 	if control_interface == null:
 		push_warning("UIManager could not resolve a ControlInterface from its ship")
@@ -101,6 +126,7 @@ func _ready() -> void:
 
 	_update_velocity_labels()
 	_update_goal_labels()
+	_update_training_labels()
 
 
 func _physics_process(_delta: float) -> void:
@@ -109,6 +135,7 @@ func _physics_process(_delta: float) -> void:
 
 	_update_velocity_labels()
 	_update_goal_labels()
+	_update_training_labels()
 
 
 func _configure_throttle_slider() -> void:
@@ -200,6 +227,29 @@ func _update_goal_labels() -> void:
 	_update_unsigned_value_label(goal_threshold_value_label, goal_area.speed_threshold_mps, " m/s")
 
 
+func _update_training_labels() -> void:
+	if rl_bridge == null:
+		_update_text_label(training_connection_value_label, "Offline")
+		_update_text_label(training_phase_value_label, "No bridge")
+		_update_text_label(training_episode_value_label, "--")
+		_update_text_label(training_frames_value_label, "--")
+		_update_text_label(training_total_reward_value_label, "--")
+		_update_text_label(training_step_reward_value_label, "--")
+		_update_text_label(training_reason_value_label, "--")
+		return
+
+	var training_state := rl_bridge.get_training_hud_state()
+	var trainer_connected := bool(training_state.get("connected", false))
+
+	_update_text_label(training_connection_value_label, "Connected" if trainer_connected else "Waiting")
+	_update_text_label(training_phase_value_label, _humanize_status_text(String(training_state.get("phase", "idle"))))
+	_update_text_label(training_episode_value_label, str(int(training_state.get("episode_index", 0))))
+	_update_text_label(training_frames_value_label, str(int(training_state.get("episode_frames", 0))))
+	_update_signed_value_label(training_total_reward_value_label, float(training_state.get("episode_reward_total", 0.0)))
+	_update_signed_value_label(training_step_reward_value_label, float(training_state.get("last_step_reward", 0.0)))
+	_update_text_label(training_reason_value_label, _humanize_status_text(String(training_state.get("last_terminal_reason", "idle"))))
+
+
 func _on_goal_state_changed(_is_inside: bool) -> void:
 	_update_goal_labels()
 
@@ -217,6 +267,13 @@ func _update_text_label(target_label: Label, value: String) -> void:
 		return
 
 	target_label.text = value
+
+
+func _humanize_status_text(value: String) -> String:
+	if value.is_empty():
+		return "--"
+
+	return value.replace("_", " ").capitalize()
 
 
 func _update_signed_value_label(target_label: Label, value: float, suffix: String = "") -> void:

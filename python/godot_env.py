@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import os
 import socket
@@ -85,14 +87,22 @@ class GodotThrusterEnv(gym.Env):
 				f"Expected RL bridge protocol version {BRIDGE_PROTOCOL_VERSION}, got {self.bridge_version}"
 			)
 
-		self.thruster_count = int(hello_response["thruster_count"])
+		self.bridge_metadata = self._normalize_bridge_metadata(hello_response)
+		self.thruster_count = int(self.bridge_metadata["thruster_count"])
 		if self.thruster_count <= 0:
 			raise GodotProtocolError(
 				f"Expected a positive thruster count from the RL bridge, got {self.thruster_count}"
 			)
 
-		self.expected_observation_size = self.thruster_count + OBSERVATION_FIXED_FIELDS
-		self.default_action_frames = int(hello_response.get("default_action_frames", step_frames))
+		self.observation_schema_fields = tuple(
+			str(field_name) for field_name in self.bridge_metadata["observation_schema"]["fields"]
+		)
+		self.expected_observation_size = len(self.observation_schema_fields)
+		if self.expected_observation_size <= 0:
+			self.expected_observation_size = self.thruster_count + OBSERVATION_FIXED_FIELDS
+		self.default_action_frames = int(self.bridge_metadata.get("default_action_frames", step_frames))
+		self.environment_fingerprint = str(self.bridge_metadata["environment_fingerprint"])
+		self.reward_config_hash = str(self.bridge_metadata["reward_config_hash"])
 		initial_observation = self._coerce_observation(hello_response["observation"], context="hello")
 
 		self.action_space = spaces.Box(
@@ -171,6 +181,42 @@ class GodotThrusterEnv(gym.Env):
 			except subprocess.TimeoutExpired:
 				self._process.kill()
 			self._process = None
+
+	def get_environment_metadata(self) -> dict[str, Any]:
+		return copy.deepcopy(self.bridge_metadata)
+
+	def _normalize_bridge_metadata(self, hello_response: dict[str, Any]) -> dict[str, Any]:
+		metadata = dict(hello_response)
+		thruster_count = int(metadata.get("thruster_count", 0))
+		observation_schema = dict(metadata.get("observation_schema") or {})
+		observation_fields = observation_schema.get("fields")
+		if not isinstance(observation_fields, list) or not observation_fields:
+			observation_fields = _default_observation_fields(thruster_count)
+		observation_schema["fields"] = [str(field_name) for field_name in observation_fields]
+		observation_schema.setdefault("fixed_field_count", max(len(observation_schema["fields"]) - thruster_count - 2, 0))
+		observation_schema.setdefault("thruster_field_count", thruster_count)
+		observation_schema.setdefault("flag_field_count", 2)
+		metadata["observation_schema"] = observation_schema
+		metadata.setdefault("reward_config", {})
+		metadata.setdefault("goal_config", {})
+		metadata.setdefault("ship_config", {})
+		metadata.setdefault("thruster_config", {})
+		environment_contract = {
+			"bridge_version": int(metadata.get("version", -1)),
+			"thruster_count": thruster_count,
+			"default_action_frames": int(metadata.get("default_action_frames", self.step_frames)),
+			"episode_frame_limit": metadata.get("episode_frame_limit"),
+			"physics_ticks_per_second": metadata.get("physics_ticks_per_second"),
+			"scene_path": metadata.get("scene_path"),
+			"spawn_origin": metadata.get("spawn_origin"),
+			"observation_schema": observation_schema,
+			"goal_config": metadata["goal_config"],
+			"ship_config": metadata["ship_config"],
+			"thruster_config": metadata["thruster_config"],
+		}
+		metadata["environment_fingerprint"] = _sha256_json(environment_contract)
+		metadata["reward_config_hash"] = _sha256_json(metadata["reward_config"])
+		return metadata
 
 	def _launch_godot_process(self) -> subprocess.Popen[bytes]:
 		if not self.godot_executable:
@@ -259,3 +305,26 @@ class GodotThrusterEnv(gym.Env):
 			)
 
 		return observation
+
+
+def _default_observation_fields(thruster_count: int) -> list[str]:
+	fields = [
+		"goal_offset_local_x",
+		"goal_offset_local_y",
+		"goal_offset_local_z",
+		"linear_velocity_local_x",
+		"linear_velocity_local_y",
+		"linear_velocity_local_z",
+		"angular_velocity_local_x",
+		"angular_velocity_local_y",
+		"angular_velocity_local_z",
+		"relative_speed",
+	]
+	fields.extend(f"thruster_throttle_{index:02d}" for index in range(thruster_count))
+	fields.extend(["is_inside_goal", "is_goal_completed"])
+	return fields
+
+
+def _sha256_json(payload: Any) -> str:
+	encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+	return hashlib.sha256(encoded).hexdigest()

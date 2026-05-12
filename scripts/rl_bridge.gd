@@ -274,13 +274,127 @@ func _release_rl_control() -> void:
 func _build_hello_response() -> Dictionary:
 	# `hello` lets the Python wrapper discover how many thrusters/actions exist
 	# in the current scene before it constructs Gym spaces.
+	var current_scene: Node = get_tree().current_scene
+	var scene_path := ""
+	if current_scene != null:
+		scene_path = current_scene.scene_file_path
+
 	return {
 		"ok": true,
 		"version": 1,
 		"thruster_count": ship.get_thruster_controller().get_thruster_count(),
 		"default_action_frames": default_action_frames,
+		"episode_frame_limit": episode_frame_limit,
+		"physics_ticks_per_second": Engine.physics_ticks_per_second,
+		"scene_path": scene_path,
+		"spawn_origin": _vector3_to_array(spawn_origin),
 		"observation": _get_observation(),
+		"observation_schema": _build_observation_schema(),
+		"reward_config": _build_reward_config(),
+		"goal_config": _build_goal_config(),
+		"ship_config": _build_ship_config(),
+		"thruster_config": _build_thruster_config(),
 	}
+
+
+func _build_observation_schema() -> Dictionary:
+	var fields: Array[String] = [
+		"goal_offset_local_x",
+		"goal_offset_local_y",
+		"goal_offset_local_z",
+		"linear_velocity_local_x",
+		"linear_velocity_local_y",
+		"linear_velocity_local_z",
+		"angular_velocity_local_x",
+		"angular_velocity_local_y",
+		"angular_velocity_local_z",
+		"relative_speed",
+	]
+	var thruster_count := ship.get_thruster_controller().get_thruster_count()
+	for index in range(thruster_count):
+		fields.append("thruster_throttle_%02d" % index)
+	fields.append("is_inside_goal")
+	fields.append("is_goal_completed")
+	return {
+		"fields": fields,
+		"fixed_field_count": 10,
+		"thruster_field_count": thruster_count,
+		"flag_field_count": 2,
+	}
+
+
+func _build_reward_config() -> Dictionary:
+	return {
+		"training_boundary_radius": training_boundary_radius,
+		"progress_reward_scale": progress_reward_scale,
+		"approach_bonus_radius": approach_bonus_radius,
+		"approach_bonus_scale": approach_bonus_scale,
+		"speed_penalty_scale": speed_penalty_scale,
+		"speed_penalty_distance": speed_penalty_distance,
+		"thruster_penalty_scale": thruster_penalty_scale,
+		"living_penalty_per_frame": living_penalty_per_frame,
+		"goal_zone_entry_bonus": goal_zone_entry_bonus,
+		"success_reward": success_reward,
+		"out_of_bounds_penalty": out_of_bounds_penalty,
+		"timeout_penalty": timeout_penalty,
+	}
+
+
+func _build_goal_config() -> Dictionary:
+	return {
+		"goal_position": _vector3_to_array(goal_area.global_position),
+		"goal_velocity": _vector3_to_array(goal_area.goal_velocity),
+		"speed_threshold_mps": goal_area.speed_threshold_mps,
+	}
+
+
+func _build_ship_config() -> Dictionary:
+	return {
+		"mass": ship.mass,
+		"linear_damp": ship.linear_damp,
+		"angular_damp": ship.angular_damp,
+		"gravity_scale": ship.gravity_scale,
+		"spawn_position": _vector3_to_array(ship.global_position),
+		"spawn_basis": _basis_to_rows(ship.global_transform.basis),
+	}
+
+
+func _build_thruster_config() -> Dictionary:
+	var controller: ThrusterController = ship.get_thruster_controller()
+	var thrusters: Array[Dictionary] = []
+	if controller != null:
+		for index in range(controller.thrusters.size()):
+			var thruster: ThrusterPoint = controller.thrusters[index]
+			if thruster == null:
+				continue
+			thrusters.append({
+				"index": index,
+				"name": thruster.name,
+				"enabled": thruster.enabled,
+				"position_local": _vector3_to_array(controller.to_local(thruster.global_position)),
+				"thrust_direction_local": _vector3_to_array(thruster.thrust_direction.normalized()),
+				"linear_response": thruster.linear_response,
+				"angular_response": thruster.angular_response,
+				"max_force": thruster.max_force,
+			})
+	return {
+		"center_of_mass_local": _vector3_to_array(controller.center_of_mass_local),
+		"direct_throttle_slew_rate": controller.direct_throttle_slew_rate,
+		"thrusters": thrusters,
+	}
+
+
+func _vector3_to_array(value: Vector3) -> Array[float]:
+	var result: Array[float] = [value.x, value.y, value.z]
+	return result
+
+
+func _basis_to_rows(value: Basis) -> Array[Array]:
+	var rows: Array[Array] = []
+	rows.append(_vector3_to_array(value.x))
+	rows.append(_vector3_to_array(value.y))
+	rows.append(_vector3_to_array(value.z))
+	return rows
 
 
 func _build_step_response(

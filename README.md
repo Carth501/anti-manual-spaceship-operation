@@ -20,6 +20,7 @@ This makes headless runs the default for fast training, while still allowing a v
 - External Python smoke tests are working.
 - Godot can be launched directly by the Python wrapper.
 - Headless and watchable training modes both work.
+- New runs now write manifests and CSV registries under `experiments/`.
 - The in-game UI includes a training HUD that shows trainer connection state, episode counters, reward totals, and the last terminal reason.
 - The first curriculum is soft docking only. Obstacle avoidance is not yet part of the RL task.
 
@@ -143,12 +144,144 @@ $env:GODOT_BIN = "C:\Path\To\Godot"
 
 ## Running the Environment
 
+### Experiment Tracking
+
+New runs are tracked automatically. The first pass starts clean: existing `logs/` and `models/` artifacts are not backfilled.
+
+Tracked outputs currently include:
+
+- `experiments/runs.csv`: one row per tracked run
+- `experiments/milestones.csv`: milestone hits such as first goal or success-rate thresholds
+- `experiments/policies.csv`: curated policy registry for runs promoted during training with `--policy-id` or later with `--promote-run`
+- `experiments/runs/<run_id>/manifest.json`: full run metadata, environment contract, and CLI arguments
+- `experiments/runs/<run_id>/summary.json`: derived per-run summary metrics
+
+Training runs now save policies as package directories by default. For a model output like `models/ppo_baseline`, the package layout is:
+
+- `models/ppo_baseline/policy.zip`: the saved Stable-Baselines3 policy
+- `models/ppo_baseline/manifest.json`: policy metadata and environment compatibility data
+- `models/ppo_baseline/summary.json`: derived summary metrics for that policy package
+
+Legacy flat files such as `models/ppo_baseline.zip` with nearby metadata are still loadable for backward compatibility.
+
+Current run-level metadata includes:
+
+- persona tags such as `aggressive`, `efficient`, or `safe`
+- training-technique labels for comparing reward structures or curricula
+- environment fingerprint and reward-config hash
+- average and median goal steps, frames, and timesteps when goals are reached
+- milestone timestamps and timesteps for threshold-based comparisons
+
+Current policy-level metadata includes:
+
+- curated policy id and label
+- persona, objective, intended use, and algorithm
+- training technique and best-in-category flag
+- policy notes, environment fingerprint, reward-config hash, and source run id
+
+Useful tracking flags:
+
+- `--tracking-dir experiments`: change where manifests and CSV registries are written
+- `--run-label baseline-v1`: human-readable label for the tracked run
+- `--persona safe`: behavior category tag for the run or promoted policy
+- `--training-technique reward_shaping_v2`: label for the training structure or recipe
+- `--policy-id safe-docker-v1`: optional curated policy identifier to upsert into `policies.csv`
+- `--policy-label "Safe Docker V1"`: curated display label for the policy catalog
+- `--policy-objective "Dock reliably without high-speed goal entries"`: short optimization target
+- `--policy-intended-use "Reference safe docking baseline"`: operator-facing usage note
+- `--policy-algorithm PPO`: algorithm label stored with policy metadata
+- `--policy-best-in-category`: mark the policy as the current best choice in its category
+- `--policy-notes "Promoted after regression checks"`: curated notes stored with the policy metadata
+- `--run-notes "reduced speed penalty near goal"`: freeform notes stored in the manifest
+
+Focused planning docs for the next increments live in:
+
+- `docs/policy_metadata_plan.md`
+- `docs/milestone_coverage_plan.md`
+
+Useful admin commands:
+
+- `python python/train.py --promote-run <run_id> --tracking-dir experiments --policy-id ...`: curate an existing tracked run into the policy catalog
+- `python python/train.py --rebuild-tracking --tracking-dir experiments`: rebuild `runs.csv`, `policies.csv`, and `milestones.csv` from tracked run manifests
+
+### Promotion Workflow
+
+`experiments/runs.csv` is the full run ledger. `experiments/policies.csv` is the curated shortlist you use when choosing which saved policy should stay in active consideration. Promotion is the step that turns one tracked run into one curated policy entry.
+
+Recommended workflow:
+
+1. Run training or evaluation with tracking enabled so the run writes `experiments/runs/<run_id>/manifest.json` and `summary.json`.
+2. Review the run in `experiments/runs.csv` and, when needed, open the run summary to inspect success rate, goal timing metrics, and terminal-reason counts.
+3. Promote the run with `--promote-run <run_id>` and the curated policy fields you want to keep with that artifact.
+4. Use the same `--policy-id` when you want to revise metadata for the same curated entry. Use a new `--policy-id` when you want a distinct catalog entry for side-by-side comparison.
+
+Promotion currently does all of the following in one step:
+
+- updates the `policy` block inside `experiments/runs/<run_id>/manifest.json`
+- writes matching metadata into the saved policy package manifest under `models/<policy>/manifest.json` or the legacy sidecar location
+- writes the promoted run summary into the package `summary.json` next to the saved model
+- rebuilds `experiments/runs.csv`, `experiments/policies.csv`, and `experiments/milestones.csv` from tracked run manifests
+
+Two common promotion patterns are supported:
+
+- promote during training by passing `--policy-id` and the other `--policy-*` flags directly on the training command
+- promote later with `--promote-run` after you have inspected the finished run and decided it belongs in the curated catalog
+
+Use `--rebuild-tracking` any time you want to regenerate the CSV registries from the run manifests. The manifests are the source of truth; the CSVs are rebuildable views.
+
+### Comparison Workflow
+
+There is no dedicated compare subcommand yet. The intended comparison workflow is to use the tracked CSVs and summaries as layered views of the same data.
+
+Recommended workflow:
+
+1. Start in `experiments/runs.csv` when you want to compare every tracked run, including candidates that have not been curated into the policy catalog yet.
+2. Filter to compatible runs first. Matching `environment_fingerprint` is the safest apples-to-apples check, and matching `reward_config_hash` means the reward shaping was also identical.
+3. Compare `success_rate`, `median_goal_steps`, `median_goal_timesteps`, `mean_episode_reward`, and `first_success_timestep` together instead of ranking by reward alone.
+4. Open the run `summary.json` when two runs look close. `terminal_reason_counts` is often the fastest way to spot hidden failure modes such as repeated timeouts or out-of-bounds endings.
+5. Once a run deserves to stay in the curated set, compare it in `experiments/policies.csv` against other promoted policies in the same persona or intended-use bucket.
+6. Use `experiments/milestones.csv` when you care about when a threshold was first reached, not just the final aggregate metrics.
+
+Use the artifacts this way:
+
+- `experiments/runs.csv`: broad experiment comparison across all tracked runs
+- `experiments/policies.csv`: curated policy comparison after promotion
+- `experiments/milestones.csv`: threshold-achievement timeline for each run
+- `experiments/runs/<run_id>/summary.json`: detailed rollup for one tracked run
+- `models/<policy>/summary.json`: the promoted policy's summary stored next to the saved model package
+
+PowerShell examples:
+
+Top compatible safe runs:
+
+```powershell
+Import-Csv experiments/runs.csv |
+	Where-Object { $_.persona -eq "safe" -and $_.environment_fingerprint -eq "<fingerprint>" } |
+	Sort-Object @{ Expression = { if ($_.success_rate) { [double]$_.success_rate } else { 0.0 } }; Descending = $true }, @{ Expression = { if ($_.median_goal_steps) { [double]$_.median_goal_steps } else { [double]::PositiveInfinity } } } |
+	Select-Object -First 10 run_id, label, training_technique, success_rate, median_goal_steps, first_success_timestep
+```
+
+Top curated safe policies:
+
+```powershell
+Import-Csv experiments/policies.csv |
+	Where-Object { $_.persona -eq "safe" } |
+	Sort-Object @{ Expression = { if ($_.is_best_in_category -eq "true") { 1 } else { 0 } }; Descending = $true }, @{ Expression = { if ($_.success_rate) { [double]$_.success_rate } else { 0.0 } }; Descending = $true }, @{ Expression = { if ($_.median_goal_steps) { [double]$_.median_goal_steps } else { [double]::PositiveInfinity } } } |
+	Format-Table policy_id, label, source_run_id, success_rate, median_goal_steps, is_best_in_category
+```
+
 ### Headless Smoke Test
 
 This is the fastest way to confirm the bridge is working.
 
 ```powershell
 python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --random-only --smoke-episodes 1 --smoke-steps 50
+```
+
+Tracked smoke example:
+
+```powershell
+python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --random-only --smoke-episodes 1 --smoke-steps 50 --run-label smoke-baseline --persona safe --training-technique smoke_validation
 ```
 
 ### Watch Mode
@@ -184,7 +317,7 @@ python python/train.py --random-only --smoke-episodes 1 --smoke-steps 50
 
 ### Saved Policy Evaluation
 
-Once you have a saved PPO model, you can replay it through the same bridge without starting a new training run.
+Once you have a saved PPO model, you can replay it through the same bridge without starting a new training run. With the default package layout, pass the package directory to `--eval-model`.
 
 Headless evaluation:
 
@@ -201,6 +334,7 @@ python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot
 Notes:
 
 - Evaluation checks the saved model action and observation shapes against the live environment before rollout starts.
+- If the model package contains `manifest.json`, evaluation also checks observation schema order, action-frame settings, and environment fingerprint. Reward-config drift is warned about but does not block evaluation.
 - Use `--stochastic-eval` if you want sampled rather than deterministic actions.
 - `--log-steps`, `--log-step-details`, and `--log-jsonl` work during evaluation too.
 
@@ -219,15 +353,24 @@ Recommended baseline command:
 python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --smoke-episodes 1 --smoke-steps 8 --timesteps 100000 --ppo-n-steps 256 --ppo-batch-size 64 --model-output models/ppo_baseline
 ```
 
+Tracked baseline example with categorization:
+
+```powershell
+python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --smoke-episodes 1 --smoke-steps 8 --timesteps 100000 --ppo-n-steps 256 --ppo-batch-size 64 --model-output models/ppo_baseline_safe --run-label baseline-safe-v1 --persona safe --training-technique ppo_reward_baseline --policy-id safe-docker-v1 --policy-label "Safe Docker V1" --policy-objective "Dock reliably without high-speed goal entries" --policy-intended-use "Reference safe docking baseline" --policy-algorithm PPO
+```
+
 What this does:
 
 - runs one short random smoke episode first so the bridge is exercised before PPO starts
 - trains PPO for 100,000 timesteps with a modest rollout size
-- writes the saved model to `models/ppo_baseline.zip`
+- writes the saved policy package to `models/ppo_baseline/`
 - writes per-episode PPO training summaries to `logs/ppo_baseline_training.jsonl` by default
+- writes a run manifest and summary under `experiments/runs/<run_id>/`
+- updates `experiments/runs.csv` and, when `--policy-id` is set, `experiments/policies.csv`
 
 Each PPO training JSONL record includes:
 
+- a metadata header record as the first line
 - episode reward total
 - episode step and frame counts
 - terminal reason or incomplete-training marker
@@ -261,7 +404,13 @@ Recommended workflow:
 Example replay command:
 
 ```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.05 --eval-model models/ppo_baseline.zip --eval-episodes 3 --eval-steps 300
+python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.05 --eval-model models/ppo_baseline --eval-episodes 3 --eval-steps 300
+```
+
+Example promotion command for a previously tracked run:
+
+```powershell
+python python/train.py --promote-run 20260512T193636Z-safe-docker-baseline-v1-8750b1cc --tracking-dir experiments --policy-id safe-docker-baseline-v1 --policy-label "Safe Docker Baseline V1" --persona safe --training-technique ppo_reward_baseline --policy-objective "Dock reliably without high-speed goal entries" --policy-intended-use "Reference safe docking baseline for reward tuning and regression checks" --policy-algorithm PPO --policy-best-in-category --policy-notes "Promoted after the first longer PPO baseline run."
 ```
 
 ### What To Watch In The Results

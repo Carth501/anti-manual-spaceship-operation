@@ -1,0 +1,456 @@
+{
+  "args": {
+    "connect_timeout": 30.0,
+    "eval_episodes": 3,
+    "eval_model": null,
+    "eval_steps": 300,
+    "frames_per_step": 8,
+    "godot_executable": "C:\\Users\\carth\\Godot\\Godot 4.6",
+    "host": "127.0.0.1",
+    "launch_project": true,
+    "log_jsonl": null,
+    "log_step_details": false,
+    "log_steps": false,
+    "model_output": "models/ppo_smoke_agent",
+    "no_headless": false,
+    "persona": "safe",
+    "policy_id": "safe-docker-smoke-v1",
+    "port": 8765,
+    "ppo_batch_size": 32,
+    "ppo_n_steps": 32,
+    "random_only": false,
+    "run_label": "ppo-smoke-validation",
+    "run_notes": null,
+    "smoke_episodes": 1,
+    "smoke_steps": 8,
+    "stochastic_eval": false,
+    "timesteps": 64,
+    "tracking_dir": "experiments",
+    "training_log_jsonl": null,
+    "training_technique": "ppo_smoke_validation",
+    "watch": false,
+    "watch_step_delay": 0.05
+  },
+  "environment": {
+    "default_action_frames": 8,
+    "environment_fingerprint": "674b8616989aeaa26367a66c64dce6b9ff3fd8925d5dc8ce50b2e4519c78e181",
+    "episode_frame_limit": 2400,
+    "goal_config": {
+      "goal_position": [
+        -120.598159790039,
+        39.7413063049316,
+        -160.0
+      ],
+      "goal_velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "speed_threshold_mps": 5.0
+    },
+    "observation": [
+      101.683578491211,
+      39.7413063049316,
+      169.087295532227,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "observation_schema": {
+      "fields": [
+        "goal_offset_local_x",
+        "goal_offset_local_y",
+        "goal_offset_local_z",
+        "linear_velocity_local_x",
+        "linear_velocity_local_y",
+        "linear_velocity_local_z",
+        "angular_velocity_local_x",
+        "angular_velocity_local_y",
+        "angular_velocity_local_z",
+        "relative_speed",
+        "thruster_throttle_00",
+        "thruster_throttle_01",
+        "thruster_throttle_02",
+        "thruster_throttle_03",
+        "thruster_throttle_04",
+        "thruster_throttle_05",
+        "thruster_throttle_06",
+        "thruster_throttle_07",
+        "thruster_throttle_08",
+        "thruster_throttle_09",
+        "thruster_throttle_10",
+        "thruster_throttle_11",
+        "thruster_throttle_12",
+        "is_inside_goal",
+        "is_goal_completed"
+      ],
+      "fixed_field_count": 10,
+      "flag_field_count": 2,
+      "thruster_field_count": 13
+    },
+    "ok": true,
+    "physics_ticks_per_second": 60,
+    "reward_config": {
+      "approach_bonus_radius": 120.0,
+      "approach_bonus_scale": 25.0,
+      "goal_zone_entry_bonus": 20.0,
+      "living_penalty_per_frame": 0.001,
+      "out_of_bounds_penalty": 25.0,
+      "progress_reward_scale": 0.5,
+      "speed_penalty_distance": 60.0,
+      "speed_penalty_scale": 0.02,
+      "success_reward": 150.0,
+      "thruster_penalty_scale": 0.001,
+      "timeout_penalty": 15.0,
+      "training_boundary_radius": 1500.0
+    },
+    "reward_config_hash": "b8a8fb50af5e8d18ce13c55e7178b76264027c9dbcc0ef8fad4c55296d95a882",
+    "scene_path": "res://scenes/space.tscn",
+    "ship_config": {
+      "angular_damp": 0.0,
+      "gravity_scale": 0.0,
+      "linear_damp": 0.0,
+      "mass": 2000.0,
+      "spawn_basis": [
+        [
+          -0.994231820106506,
+          0.0,
+          0.107253238558769
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          -0.107253238558769,
+          0.0,
+          -0.994231820106506
+        ]
+      ],
+      "spawn_position": [
+        -1.36596095561981,
+        0.0,
+        -2.79392862319946
+      ]
+    },
+    "spawn_origin": [
+      -1.36596095561981,
+      0.0,
+      -2.79392862319946
+    ],
+    "thruster_config": {
+      "center_of_mass_local": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "direct_throttle_slew_rate": 8.0,
+      "thrusters": [
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 0,
+          "linear_response": 1.0,
+          "max_force": 2000.0,
+          "name": "ThrusterPoint",
+          "position_local": [
+            0.0,
+            -3.30151915550232,
+            0.0
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 1,
+          "linear_response": 1.0,
+          "max_force": 100.0,
+          "name": "ThrusterPoint2",
+          "position_local": [
+            3.35000038146973,
+            1.40799999237061,
+            -0.556640625
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 2,
+          "linear_response": 1.0,
+          "max_force": 100.0,
+          "name": "ThrusterPoint3",
+          "position_local": [
+            -3.17971420288086,
+            1.40799999237061,
+            -0.557000160217285
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 3,
+          "linear_response": 1.0,
+          "max_force": 100.0,
+          "name": "ThrusterPoint4",
+          "position_local": [
+            0.0,
+            5.69387817382813,
+            0.0
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 4,
+          "linear_response": 1.0,
+          "max_force": 100.0,
+          "name": "ThrusterPoint5",
+          "position_local": [
+            -1.19209289550781e-07,
+            1.40799999237061,
+            -3.34989881515503
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 5,
+          "linear_response": 1.0,
+          "max_force": 100.0,
+          "name": "ThrusterPoint6",
+          "position_local": [
+            0.0,
+            2.62481617927551,
+            3.34989905357361
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 6,
+          "linear_response": 1.0,
+          "max_force": 100.0,
+          "name": "ThrusterPoint7",
+          "position_local": [
+            2.4614052772522,
+            2.62481594085693,
+            1.96265006065369
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 7,
+          "linear_response": 1.0,
+          "max_force": 100.0,
+          "name": "ThrusterPoint8",
+          "position_local": [
+            2.46140480041504,
+            2.62481594085693,
+            -2.2395453453064
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 8,
+          "linear_response": 1.0,
+          "max_force": 2000.0,
+          "name": "ThrusterPoint9",
+          "position_local": [
+            -2.8981466293335,
+            -0.798546552658081,
+            -4.76837158203125e-07
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 9,
+          "linear_response": 1.0,
+          "max_force": 2000.0,
+          "name": "ThrusterPoint10",
+          "position_local": [
+            0.4403156042099,
+            -0.350541979074478,
+            -3.14372587203979
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 10,
+          "linear_response": 1.0,
+          "max_force": 2000.0,
+          "name": "ThrusterPoint11",
+          "position_local": [
+            -0.414308786392212,
+            -0.350541979074478,
+            -3.14372587203979
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 11,
+          "linear_response": 1.0,
+          "max_force": 2000.0,
+          "name": "ThrusterPoint12",
+          "position_local": [
+            0.440315365791321,
+            -0.350541681051254,
+            3.21359276771545
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "angular_response": 1.0,
+          "enabled": true,
+          "index": 12,
+          "linear_response": 1.0,
+          "max_force": 2000.0,
+          "name": "ThrusterPoint13",
+          "position_local": [
+            -0.414308726787567,
+            -0.350541681051254,
+            3.2135922908783
+          ],
+          "thrust_direction_local": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    "thruster_count": 13,
+    "version": 1
+  },
+  "milestones": [],
+  "paths": {
+    "manifest_path": "experiments/runs/20260512T192334Z-ppo-smoke-validation-d6c2e5bb/manifest.json",
+    "model_path": "models/ppo_smoke_agent.zip",
+    "run_dir": "experiments/runs/20260512T192334Z-ppo-smoke-validation-d6c2e5bb",
+    "step_log_jsonl": "",
+    "summary_path": "experiments/runs/20260512T192334Z-ppo-smoke-validation-d6c2e5bb/summary.json",
+    "tracking_dir": "experiments",
+    "training_log_jsonl": "logs/ppo_smoke_agent_training.jsonl"
+  },
+  "policy": {
+    "notes": "",
+    "persona": "safe",
+    "policy_id": "safe-docker-smoke-v1",
+    "training_technique": "ppo_smoke_validation"
+  },
+  "run": {
+    "duration_seconds": 17.262,
+    "finished_at": "2026-05-12T19:23:51Z",
+    "label": "ppo-smoke-validation",
+    "mode": "training",
+    "run_id": "20260512T192334Z-ppo-smoke-validation-d6c2e5bb",
+    "started_at": "2026-05-12T19:23:34Z",
+    "status": "completed"
+  },
+  "schema_version": 1,
+  "summary": {
+    "completed_episode_count": 0,
+    "episode_count": 1,
+    "first_success_episode": null,
+    "first_success_timestep": null,
+    "mean_episode_reward": null,
+    "mean_goal_frames": null,
+    "mean_goal_steps": null,
+    "mean_goal_timesteps": null,
+    "median_episode_reward": null,
+    "median_goal_frames": null,
+    "median_goal_steps": null,
+    "median_goal_timesteps": null,
+    "milestone_count": 0,
+    "success_count": 0,
+    "success_rate": null,
+    "terminal_reason_counts": {
+      "in_progress": 1
+    },
+    "timesteps_completed": 64,
+    "wall_seconds": 17.262
+  }
+}

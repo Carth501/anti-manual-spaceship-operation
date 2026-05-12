@@ -1,0 +1,22 @@
+{
+  "completed_episode_count": 0,
+  "episode_count": 1,
+  "first_success_episode": null,
+  "first_success_timestep": null,
+  "mean_episode_reward": null,
+  "mean_goal_frames": null,
+  "mean_goal_steps": null,
+  "mean_goal_timesteps": null,
+  "median_episode_reward": null,
+  "median_goal_frames": null,
+  "median_goal_steps": null,
+  "median_goal_timesteps": null,
+  "milestone_count": 0,
+  "success_count": 0,
+  "success_rate": null,
+  "terminal_reason_counts": {
+    "in_progress": 1
+  },
+  "timesteps_completed": 64,
+  "wall_seconds": 17.262
+}

@@ -17,7 +17,7 @@ extends Node
 @export_range(0.0, 100000.0, 0.1, "or_greater") var approach_bonus_radius := 120.0
 @export_range(0.0, 1000.0, 0.001, "or_greater") var approach_bonus_scale := 25.0
 @export_range(0.0, 100.0, 0.001, "or_greater") var speed_penalty_scale := 0.02
-@export_range(0.0, 100000.0, 0.1, "or_greater") var speed_penalty_distance := 60.0
+@export_range(0.0, 100000.0, 0.1, "or_greater") var speed_penalty_distance := 600.0
 @export_range(0.0, 100.0, 0.001, "or_greater") var thruster_penalty_scale := 0.001
 @export_range(0.0, 10.0, 0.0001, "or_greater") var living_penalty_per_frame := 0.001
 @export_range(0.0, 10000.0, 0.1, "or_greater") var goal_zone_entry_bonus := 20.0

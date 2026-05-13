@@ -71,6 +71,7 @@ MILESTONES_FIELDNAMES = [
 POLICIES_FIELDNAMES = [
 	"policy_id",
 	"source_run_id",
+	"source_run_finished_at",
 	"label",
 	"persona",
 	"objective",
@@ -86,10 +87,38 @@ POLICIES_FIELDNAMES = [
 	"reward_config_hash",
 	"timesteps_completed",
 	"success_rate",
+	"mean_episode_reward",
 	"mean_goal_steps",
 	"median_goal_steps",
+	"median_goal_timesteps",
+	"latest_evaluation_at",
 	"updated_at",
 ]
+
+POLICY_REGISTRY_STABLE_FIELDS = (
+	"label",
+	"persona",
+	"objective",
+	"intended_use",
+	"algorithm",
+	"training_technique",
+	"is_best_in_category",
+	"notes",
+	"manifest_path",
+	"model_path",
+	"model_artifact_path",
+	"environment_fingerprint",
+	"reward_config_hash",
+)
+
+POLICY_REGISTRY_COMPARISON_FIELDS = (
+	"timesteps_completed",
+	"success_rate",
+	"mean_episode_reward",
+	"mean_goal_steps",
+	"median_goal_steps",
+	"median_goal_timesteps",
+)
 
 
 class EpisodeAccumulator:
@@ -447,9 +476,10 @@ class RunTracker:
 			self.manifest["paths"].get("model_path", ""),
 			self.manifest["paths"].get("model_artifact_path", ""),
 		)
-		row = {
+		candidate_row = {
 			"policy_id": self.policy_id,
 			"source_run_id": self.run_id,
+			"source_run_finished_at": finished_at,
 			"label": self.policy_label,
 			"persona": self.persona,
 			"objective": self.policy_objective,
@@ -465,10 +495,15 @@ class RunTracker:
 			"reward_config_hash": self.environment.get("reward_config_hash", ""),
 			"timesteps_completed": summary.get("timesteps_completed"),
 			"success_rate": summary.get("success_rate"),
+			"mean_episode_reward": summary.get("mean_episode_reward"),
 			"mean_goal_steps": summary.get("mean_goal_steps"),
 			"median_goal_steps": summary.get("median_goal_steps"),
+			"median_goal_timesteps": summary.get("median_goal_timesteps"),
+			"latest_evaluation_at": finished_at if self.mode == "evaluation" else "",
 			"updated_at": finished_at,
 		}
+		existing_row = _load_csv_row_by_key(self.tracking_dir / "policies.csv", key_field="policy_id", key_value=self.policy_id)
+		row = merge_policy_registry_row(existing_row, candidate_row, run_mode=self.mode)
 		_upsert_csv_rows(
 			self.tracking_dir / "policies.csv",
 			fieldnames=POLICIES_FIELDNAMES,
@@ -530,6 +565,61 @@ def _ensure_csv_file(path: Path, fieldnames: list[str]) -> None:
 		writer.writeheader()
 
 
+def _load_csv_row_by_key(path: Path, *, key_field: str, key_value: str) -> dict[str, str] | None:
+	if not path.exists():
+		return None
+	with path.open("r", encoding="utf-8", newline="") as handle:
+		for row in csv.DictReader(handle):
+			if row.get(key_field, "") == key_value:
+				return row
+	return None
+
+
+def merge_policy_registry_row(
+	existing_row: Mapping[str, Any] | None,
+	candidate_row: Mapping[str, Any],
+	*,
+	run_mode: str,
+) -> dict[str, Any]:
+	existing = {field: _csv_value((existing_row or {}).get(field)) for field in POLICIES_FIELDNAMES}
+	candidate = {field: _csv_value(candidate_row.get(field)) for field in POLICIES_FIELDNAMES}
+	merged = dict(existing)
+
+	merged["policy_id"] = str(candidate.get("policy_id", "") or existing.get("policy_id", ""))
+
+	if run_mode == "evaluation":
+		for field in POLICY_REGISTRY_STABLE_FIELDS:
+			if not merged.get(field, "") and candidate.get(field, ""):
+				merged[field] = candidate[field]
+	else:
+		for field in POLICY_REGISTRY_STABLE_FIELDS:
+			if candidate.get(field, "") != "":
+				merged[field] = candidate[field]
+
+	if run_mode == "evaluation":
+		if not merged.get("source_run_id", "") and candidate.get("source_run_id", ""):
+			merged["source_run_id"] = candidate["source_run_id"]
+		if not merged.get("source_run_finished_at", "") and candidate.get("source_run_finished_at", ""):
+			merged["source_run_finished_at"] = candidate["source_run_finished_at"]
+	else:
+		if candidate.get("source_run_id", ""):
+			merged["source_run_id"] = candidate["source_run_id"]
+		if candidate.get("source_run_finished_at", ""):
+			merged["source_run_finished_at"] = candidate["source_run_finished_at"]
+
+	for field in POLICY_REGISTRY_COMPARISON_FIELDS:
+		merged[field] = candidate.get(field, "")
+
+	candidate_updated_at = str(candidate.get("updated_at", "") or "")
+	merged["updated_at"] = _latest_iso_timestamp(existing.get("updated_at", ""), candidate_updated_at)
+	if run_mode == "evaluation":
+		merged["latest_evaluation_at"] = _latest_iso_timestamp(existing.get("latest_evaluation_at", ""), candidate_updated_at)
+	else:
+		merged["latest_evaluation_at"] = str(existing.get("latest_evaluation_at", "") or "")
+
+	return {field: merged.get(field, "") for field in POLICIES_FIELDNAMES}
+
+
 def _upsert_csv_rows(
 	path: Path,
 	*,
@@ -564,6 +654,11 @@ def _upsert_csv_rows(
 
 def _row_key(row: Mapping[str, Any], key_fields: tuple[str, ...]) -> tuple[str, ...]:
 	return tuple(_csv_value(row.get(field)) for field in key_fields)
+
+
+def _latest_iso_timestamp(*values: Any) -> str:
+	timestamps = [str(value) for value in values if str(value)]
+	return max(timestamps, default="")
 
 
 def _csv_value(value: Any) -> str | int | float:

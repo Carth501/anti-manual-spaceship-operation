@@ -178,6 +178,7 @@ Current policy-level metadata includes:
 - persona, objective, intended use, and algorithm
 - training technique and best-in-category flag
 - policy notes, environment fingerprint, reward-config hash, and source run id
+- policy-facing comparison fields including success rate, mean episode reward, mean and median goal steps, median goal timesteps, source run finished timestamp, latest evaluation timestamp, and the last policy-row update timestamp
 
 Useful tracking flags:
 
@@ -241,6 +242,12 @@ Recommended workflow:
 4. Open the run `summary.json` when two runs look close. `terminal_reason_counts` is often the fastest way to spot hidden failure modes such as repeated timeouts or out-of-bounds endings.
 5. Once a run deserves to stay in the curated set, compare it in `experiments/policies.csv` against other promoted policies in the same persona or intended-use bucket.
 6. Use `experiments/milestones.csv` when you care about when a threshold was first reached, not just the final aggregate metrics.
+
+For policy rows, interpret the timestamps this way:
+
+- `source_run_finished_at`: when the originating non-evaluation source run completed
+- `latest_evaluation_at`: when the policy was last refreshed by an evaluation run
+- `updated_at`: when the policy row was last refreshed by any tracked run
 
 Use the artifacts this way:
 

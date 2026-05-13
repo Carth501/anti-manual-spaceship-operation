@@ -12,6 +12,7 @@ from run_tracking import (
 	MODEL_PACKAGE_SUMMARY_FILENAME,
 	POLICIES_FIELDNAMES,
 	RUNS_FIELDNAMES,
+	merge_policy_registry_row,
 )
 
 
@@ -20,16 +21,25 @@ def rebuild_tracking_registries(tracking_dir: str | Path) -> dict[str, int]:
 	runs_root = tracking_root / "runs"
 	manifests = sorted(runs_root.glob("*/manifest.json")) if runs_root.exists() else []
 	run_rows: list[dict[str, Any]] = []
-	policy_rows: list[dict[str, Any]] = []
+	policy_rows_by_id: dict[str, dict[str, Any]] = {}
 	milestone_rows: list[dict[str, Any]] = []
 
-	for manifest_path in manifests:
-		manifest = load_tracked_run_manifest(manifest_path)
+	loaded_manifests = [load_tracked_run_manifest(manifest_path) for manifest_path in manifests]
+	loaded_manifests.sort(key=_manifest_sort_key)
+
+	for manifest in loaded_manifests:
 		run_rows.append(_build_run_row(manifest))
 		policy_row = _build_policy_row(manifest)
 		if policy_row is not None:
-			policy_rows.append(policy_row)
+			policy_id = str(policy_row.get("policy_id", ""))
+			policy_rows_by_id[policy_id] = merge_policy_registry_row(
+				policy_rows_by_id.get(policy_id),
+				policy_row,
+				run_mode=str((manifest.get("run") or {}).get("mode", "")),
+			)
 		milestone_rows.extend(_build_milestone_rows(manifest))
+
+	policy_rows = list(policy_rows_by_id.values())
 
 	_write_csv_rows(tracking_root / "runs.csv", RUNS_FIELDNAMES, run_rows)
 	_write_csv_rows(tracking_root / "policies.csv", POLICIES_FIELDNAMES, policy_rows)
@@ -207,6 +217,7 @@ def _build_policy_row(manifest: Mapping[str, Any]) -> dict[str, Any] | None:
 	return {
 		"policy_id": policy_id,
 		"source_run_id": run.get("run_id", ""),
+		"source_run_finished_at": run.get("finished_at", ""),
 		"label": policy.get("label", ""),
 		"persona": policy.get("persona", ""),
 		"objective": policy.get("objective", ""),
@@ -222,10 +233,22 @@ def _build_policy_row(manifest: Mapping[str, Any]) -> dict[str, Any] | None:
 		"reward_config_hash": environment.get("reward_config_hash", ""),
 		"timesteps_completed": summary.get("timesteps_completed", ""),
 		"success_rate": summary.get("success_rate", ""),
+		"mean_episode_reward": summary.get("mean_episode_reward", ""),
 		"mean_goal_steps": summary.get("mean_goal_steps", ""),
 		"median_goal_steps": summary.get("median_goal_steps", ""),
+		"median_goal_timesteps": summary.get("median_goal_timesteps", ""),
+		"latest_evaluation_at": run.get("finished_at", "") if str(run.get("mode", "")) == "evaluation" else "",
 		"updated_at": run.get("finished_at", ""),
 	}
+
+
+def _manifest_sort_key(manifest: Mapping[str, Any]) -> tuple[str, str, str]:
+	run = dict(manifest.get("run") or {})
+	return (
+		str(run.get("finished_at", "") or ""),
+		str(run.get("started_at", "") or ""),
+		str(run.get("run_id", "") or ""),
+	)
 
 
 def _build_milestone_rows(manifest: Mapping[str, Any]) -> list[dict[str, Any]]:

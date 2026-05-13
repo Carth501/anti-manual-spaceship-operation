@@ -242,6 +242,7 @@ class RunTracker:
 		mode: str,
 		args: Mapping[str, Any],
 		environment: Mapping[str, Any],
+		run_command: str | None = None,
 		run_label: str | None = None,
 		persona: str | None = None,
 		training_technique: str | None = None,
@@ -258,6 +259,7 @@ class RunTracker:
 		self.mode = mode
 		self.args = dict(args)
 		self.environment = json.loads(json.dumps(environment))
+		self.run_command = str(run_command or "")
 		self.run_label = run_label or mode
 		self.persona = persona or ""
 		self.training_technique = training_technique or ""
@@ -286,6 +288,7 @@ class RunTracker:
 				"run_id": self.run_id,
 				"mode": self.mode,
 				"label": self.run_label,
+				"command": self.run_command,
 				"started_at": self.started_at,
 				"notes": self.run_notes,
 				"status": "running",

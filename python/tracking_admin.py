@@ -116,6 +116,7 @@ def load_tracked_run_manifest(manifest_path: str | Path) -> dict[str, Any]:
 	run_block = dict(manifest.get("run") or {})
 	run_block.setdefault("run_id", run_dir.name)
 	run_block.setdefault("label", run_dir.name)
+	run_block.setdefault("command", "")
 	run_block.setdefault("status", "completed")
 	run_block.setdefault("notes", "")
 	manifest["run"] = run_block

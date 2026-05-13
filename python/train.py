@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -161,6 +164,21 @@ def parse_args() -> argparse.Namespace:
 def _default_training_log_path(model_output: str) -> Path:
 	model_path = Path(model_output)
 	return Path("logs") / f"{model_path.stem}_training.jsonl"
+
+
+def _get_invocation_command() -> str:
+	if sys.platform == "win32":
+		try:
+			import ctypes
+
+			raw_command = ctypes.windll.kernel32.GetCommandLineW()
+			if isinstance(raw_command, str) and raw_command:
+				return raw_command
+		except (AttributeError, OSError):
+			pass
+		return subprocess.list2cmdline([sys.executable, *sys.argv])
+
+	return shlex.join([sys.executable, *sys.argv])
 
 
 def _coerce_float(value: Any, default: float = 0.0) -> float:
@@ -506,6 +524,7 @@ def build_run_tracker(args: argparse.Namespace, env: GodotThrusterEnv) -> RunTra
 		mode=_infer_run_mode(args),
 		args=vars(args).copy(),
 		environment=env.get_environment_metadata(),
+		run_command=_get_invocation_command(),
 		run_label=_default_run_label(args),
 		persona=args.persona,
 		training_technique=_default_training_technique(args),

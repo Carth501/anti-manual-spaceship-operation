@@ -28,6 +28,7 @@ class PolicyRegistryTests(unittest.TestCase):
 					"environment_fingerprint": "env-fingerprint",
 					"reward_config_hash": "reward-hash",
 				},
+				run_command='python train.py --run-label "thruster-aware-baseline"',
 				run_label="thruster-aware-baseline",
 			)
 
@@ -45,8 +46,16 @@ class PolicyRegistryTests(unittest.TestCase):
 				"thruster_set_encoder_v1",
 			)
 			self.assertEqual(
+				manifest["run"]["command"],
+				'python train.py --run-label "thruster-aware-baseline"',
+			)
+			self.assertEqual(
 				tracker.header_record()["training"]["policy_input_config"]["thruster_feature_count"],
 				12,
+			)
+			self.assertEqual(
+				tracker.header_record()["run"]["command"],
+				'python train.py --run-label "thruster-aware-baseline"',
 			)
 
 	def test_tracker_writes_policy_comparison_fields(self) -> None:

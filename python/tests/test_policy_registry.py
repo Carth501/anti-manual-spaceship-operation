@@ -17,6 +17,37 @@ from tracking_admin import rebuild_tracking_registries  # noqa: E402
 
 
 class PolicyRegistryTests(unittest.TestCase):
+	def test_tracker_persists_policy_input_config(self) -> None:
+		with tempfile.TemporaryDirectory() as temp_dir:
+			tracking_dir = Path(temp_dir) / "experiments"
+			tracker = RunTracker(
+				tracking_dir=tracking_dir,
+				mode="training",
+				args={},
+				environment={
+					"environment_fingerprint": "env-fingerprint",
+					"reward_config_hash": "reward-hash",
+				},
+				run_label="thruster-aware-baseline",
+			)
+
+			tracker.attach_policy_input_config(
+				{
+					"input_adapter": "thruster_config_concat_v1",
+					"static_feature_count": 18,
+				}
+			)
+
+			manifest = json.loads(tracker.manifest_path.read_text(encoding="utf-8"))
+			self.assertEqual(
+				manifest["training"]["policy_input_config"]["input_adapter"],
+				"thruster_config_concat_v1",
+			)
+			self.assertEqual(
+				tracker.header_record()["training"]["policy_input_config"]["static_feature_count"],
+				18,
+			)
+
 	def test_tracker_writes_policy_comparison_fields(self) -> None:
 		with tempfile.TemporaryDirectory() as temp_dir:
 			tracking_dir = Path(temp_dir) / "experiments"

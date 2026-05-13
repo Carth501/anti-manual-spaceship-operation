@@ -312,6 +312,7 @@ class RunTracker:
 				"step_log_jsonl": "",
 			},
 			"environment": self.environment,
+			"training": {},
 			"args": self.args,
 			"summary": {},
 			"milestones": [],
@@ -325,8 +326,15 @@ class RunTracker:
 			"policy": self.manifest["policy"],
 			"paths": self.manifest["paths"],
 			"environment": self.environment,
+			"training": self.manifest.get("training", {}),
 			"args": self.args,
 		}
+
+	def attach_policy_input_config(self, policy_input_config: Mapping[str, Any] | None) -> None:
+		training_block = dict(self.manifest.get("training") or {})
+		training_block["policy_input_config"] = json.loads(json.dumps(policy_input_config or {}))
+		self.manifest["training"] = training_block
+		self._write_json(self.manifest_path, self.manifest)
 
 	def attach_paths(
 		self,

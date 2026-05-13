@@ -14,7 +14,7 @@ PROJECT_PYTHON_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_PYTHON_DIR) not in sys.path:
 	sys.path.insert(0, str(PROJECT_PYTHON_DIR))
 
-from train import _validate_model_against_env  # noqa: E402
+from train import _build_thruster_policy_input_config_from_metadata, _validate_model_against_env  # noqa: E402
 
 
 class _FakeSpace:
@@ -44,6 +44,92 @@ class _FakeEnv:
 
 
 class PolicyCompatibilityTests(unittest.TestCase):
+	def test_thruster_policy_input_config_builds_structured_thruster_rows(self) -> None:
+		metadata = _build_environment_metadata(
+			thruster_count=2,
+			thruster_config={
+				"center_of_mass_local": [2.0, 0.0, -2.0],
+				"direct_throttle_slew_rate": 0.5,
+				"thrusters": [
+					{
+						"index": 0,
+						"enabled": True,
+						"position_local": [2.0, 0.0, 0.0],
+						"thrust_direction_local": [1.0, 0.0, 0.0],
+						"linear_response": [1.0, 0.0, 0.0],
+						"angular_response": [0.0, 1.0, 0.0],
+						"max_force": 10.0,
+					},
+				],
+			},
+		)
+
+		config = _build_thruster_policy_input_config_from_metadata(metadata)
+
+		self.assertEqual(config["input_adapter"], "thruster_set_encoder_v1")
+		self.assertEqual(config["thruster_count"], 2)
+		self.assertEqual(config["enabled_thruster_count"], 1)
+		self.assertEqual(config["global_feature_count"], len(config["global_feature_values"]))
+		self.assertEqual(len(config["thruster_feature_rows"]), 2)
+		self.assertEqual(config["thruster_feature_count"], len(config["thruster_feature_names"]))
+		self.assertIn("max_force", config["thruster_feature_names"])
+		self.assertEqual(
+			config["thruster_feature_rows"][0][config["thruster_feature_names"].index("present")],
+			1.0,
+		)
+		self.assertEqual(
+			config["thruster_feature_rows"][0][config["thruster_feature_names"].index("max_force")],
+			1.0,
+		)
+		self.assertEqual(
+			config["thruster_feature_rows"][1][config["thruster_feature_names"].index("present")],
+			0.0,
+		)
+		self.assertEqual(
+			config["thruster_feature_rows"][1][config["thruster_feature_names"].index("enabled")],
+			0.0,
+		)
+
+	def test_policy_input_schema_mismatch_raises(self) -> None:
+		live_metadata = _build_environment_metadata(
+			thruster_count=2,
+			thruster_config={
+				"center_of_mass_local": [0.0, 0.0, 0.0],
+				"direct_throttle_slew_rate": 1.0,
+				"thrusters": [
+					{
+						"index": 0,
+						"enabled": True,
+						"position_local": [1.0, 0.0, 0.0],
+						"thrust_direction_local": [0.0, 1.0, 0.0],
+						"linear_response": 1.0,
+						"angular_response": 1.0,
+						"max_force": 10.0,
+					},
+				],
+			},
+		)
+		training_block = {
+			"policy_input_config": {
+				"input_adapter": "thruster_set_encoder_v1",
+				"global_feature_names": ["different_global_feature"],
+				"thruster_feature_names": ["present", "enabled"],
+				"pooling": "mean_present",
+			}
+		}
+		with tempfile.TemporaryDirectory() as temp_dir:
+			model_path = _write_policy_package(
+				Path(temp_dir),
+				_build_manifest_environment(thruster_count=2),
+				training_block=training_block,
+			)
+			with self.assertRaisesRegex(SystemExit, "global policy input schema"):
+				_validate_model_against_env(
+					_FakeModel(observation_shape=(25,), action_shape=(13,)),
+					_FakeEnv(observation_shape=(25,), action_shape=(13,), metadata=live_metadata),
+					model_path=model_path,
+				)
+
 	def test_reward_config_drift_warns_but_does_not_raise(self) -> None:
 		metadata = _build_environment_metadata(reward_config_hash="live-reward")
 		with tempfile.TemporaryDirectory() as temp_dir:
@@ -112,13 +198,18 @@ class PolicyCompatibilityTests(unittest.TestCase):
 			)
 
 
-def _write_policy_package(root: Path, environment_block: dict[str, object]) -> Path:
+def _write_policy_package(
+	root: Path,
+	environment_block: dict[str, object],
+	training_block: dict[str, object] | None = None,
+) -> Path:
 	package_dir = root / "policy_package"
 	package_dir.mkdir(parents=True, exist_ok=True)
 	(package_dir / "policy.zip").write_bytes(b"")
 	manifest = {
 		"environment": environment_block,
 		"policy": {},
+		"training": dict(training_block or {}),
 		"run": {"label": "test-run"},
 		"paths": {"model_path": package_dir.as_posix(), "model_artifact_path": (package_dir / "policy.zip").as_posix()},
 	}
@@ -129,6 +220,8 @@ def _write_policy_package(root: Path, environment_block: dict[str, object]) -> P
 def _build_environment_metadata(
 	*,
 	observation_fields: list[str] | None = None,
+	thruster_count: int = 13,
+	thruster_config: dict[str, object] | None = None,
 	default_action_frames: int = 8,
 	environment_fingerprint: str = "environment-fingerprint",
 	reward_config_hash: str = "reward-config-hash",
@@ -149,6 +242,8 @@ def _build_environment_metadata(
 		"is_goal_completed",
 	]
 	return {
+		"thruster_count": thruster_count,
+		"thruster_config": dict(thruster_config or {}),
 		"observation_schema": {"fields": fields},
 		"default_action_frames": default_action_frames,
 		"environment_fingerprint": environment_fingerprint,
@@ -159,12 +254,16 @@ def _build_environment_metadata(
 def _build_manifest_environment(
 	*,
 	observation_fields: list[str] | None = None,
+	thruster_count: int = 13,
+	thruster_config: dict[str, object] | None = None,
 	default_action_frames: int = 8,
 	environment_fingerprint: str = "environment-fingerprint",
 	reward_config_hash: str = "reward-config-hash",
 ) -> dict[str, object]:
 	return _build_environment_metadata(
 		observation_fields=observation_fields,
+		thruster_count=thruster_count,
+		thruster_config=thruster_config,
 		default_action_frames=default_action_frames,
 		environment_fingerprint=environment_fingerprint,
 		reward_config_hash=reward_config_hash,

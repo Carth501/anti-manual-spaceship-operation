@@ -291,18 +291,6 @@ def _build_thruster_policy_input_config_from_metadata(environment: dict[str, Any
 			position_scale = max(position_scale, abs(component))
 		max_force_scale = max(max_force_scale, abs(_coerce_float(raw_thruster.get("max_force"), 0.0)))
 
-	static_feature_names = [
-		"center_of_mass_local_x",
-		"center_of_mass_local_y",
-		"center_of_mass_local_z",
-		"direct_throttle_slew_rate",
-	]
-	static_feature_values = [
-		center_of_mass_local[0] / position_scale,
-		center_of_mass_local[1] / position_scale,
-		center_of_mass_local[2] / position_scale,
-		_coerce_float(thruster_config.get("direct_throttle_slew_rate"), 0.0),
-	]
 	thruster_feature_names = _build_thruster_feature_names()
 	thruster_feature_rows: list[list[float]] = []
 	enabled_thruster_count = 0
@@ -321,42 +309,6 @@ def _build_thruster_policy_input_config_from_metadata(environment: dict[str, Any
 		)
 		position_local = _coerce_float_vector(thruster.get("position_local"), 3)
 		thrust_direction_local = _coerce_float_vector(thruster.get("thrust_direction_local"), 3)
-		linear_response = _coerce_float_vector(thruster.get("linear_response"), 3)
-		angular_response = _coerce_float_vector(thruster.get("angular_response"), 3)
-		max_force = _coerce_float(thruster.get("max_force"), 0.0)
-		prefix = f"thruster_{thruster_index:02d}"
-		static_feature_names.extend([
-			f"{prefix}_enabled",
-			f"{prefix}_position_local_x",
-			f"{prefix}_position_local_y",
-			f"{prefix}_position_local_z",
-			f"{prefix}_thrust_direction_local_x",
-			f"{prefix}_thrust_direction_local_y",
-			f"{prefix}_thrust_direction_local_z",
-			f"{prefix}_linear_response_x",
-			f"{prefix}_linear_response_y",
-			f"{prefix}_linear_response_z",
-			f"{prefix}_angular_response_x",
-			f"{prefix}_angular_response_y",
-			f"{prefix}_angular_response_z",
-			f"{prefix}_max_force",
-		])
-		static_feature_values.extend([
-			enabled_flag,
-			position_local[0] / position_scale,
-			position_local[1] / position_scale,
-			position_local[2] / position_scale,
-			thrust_direction_local[0],
-			thrust_direction_local[1],
-			thrust_direction_local[2],
-			linear_response[0],
-			linear_response[1],
-			linear_response[2],
-			angular_response[0],
-			angular_response[1],
-			angular_response[2],
-			max_force / max_force_scale,
-		])
 	global_feature_names, global_feature_values = _build_global_thruster_feature_config(
 		center_of_mass_local=center_of_mass_local,
 		direct_throttle_slew_rate=_coerce_float(thruster_config.get("direct_throttle_slew_rate"), 0.0),
@@ -381,9 +333,6 @@ def _build_thruster_policy_input_config_from_metadata(environment: dict[str, Any
 		"thruster_feature_count": len(thruster_feature_names),
 		"thruster_feature_names": thruster_feature_names,
 		"thruster_feature_rows": thruster_feature_rows,
-		"static_feature_count": len(static_feature_values),
-		"static_feature_names": static_feature_names,
-		"static_feature_values": static_feature_values,
 	}
 
 

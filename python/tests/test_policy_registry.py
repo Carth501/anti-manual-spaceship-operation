@@ -33,19 +33,20 @@ class PolicyRegistryTests(unittest.TestCase):
 
 			tracker.attach_policy_input_config(
 				{
-					"input_adapter": "thruster_config_concat_v1",
-					"static_feature_count": 18,
+					"input_adapter": "thruster_set_encoder_v1",
+					"global_feature_count": 7,
+					"thruster_feature_count": 12,
 				}
 			)
 
 			manifest = json.loads(tracker.manifest_path.read_text(encoding="utf-8"))
 			self.assertEqual(
 				manifest["training"]["policy_input_config"]["input_adapter"],
-				"thruster_config_concat_v1",
+				"thruster_set_encoder_v1",
 			)
 			self.assertEqual(
-				tracker.header_record()["training"]["policy_input_config"]["static_feature_count"],
-				18,
+				tracker.header_record()["training"]["policy_input_config"]["thruster_feature_count"],
+				12,
 			)
 
 	def test_tracker_writes_policy_comparison_fields(self) -> None:

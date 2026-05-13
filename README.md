@@ -130,11 +130,10 @@ If you want PPO training on a Python version that supports it, install Stable-Ba
 
 ### 3. Point Python at Godot
 
-Either pass the path on the command line:
+Relevant args:
 
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Path\To\Godot"
-```
+- `--launch-project`: start the Godot project from Python before connecting
+- `--godot-executable PATH`: point at the Godot executable or a folder that contains it
 
 Or set an environment variable:
 
@@ -202,8 +201,11 @@ Focused planning docs for the next increments live in:
 
 Useful admin commands:
 
-- `python python/train.py --promote-run <run_id> --tracking-dir experiments --policy-id ...`: curate an existing tracked run into the policy catalog
-- `python python/train.py --rebuild-tracking --tracking-dir experiments`: rebuild `runs.csv`, `policies.csv`, and `milestones.csv` from tracked run manifests
+- `--promote-run RUN_ID_OR_PATH`: curate an existing tracked run into the policy catalog
+- `--tracking-dir PATH`: choose the tracking directory; defaults to `experiments`
+- `--policy-id NAME`: upsert the curated policy row when promoting
+- `--rebuild-tracking`: rebuild `runs.csv`, `policies.csv`, and `milestones.csv` from tracked run manifests and exit
+- combine `--promote-run` with the `--policy-*`, `--persona`, and `--training-technique` flags when you want curated metadata on the promoted entry
 
 ### Promotion Workflow
 
@@ -277,66 +279,95 @@ Import-Csv experiments/policies.csv |
 	Format-Table policy_id, label, source_run_id, success_rate, median_goal_steps, is_best_in_category
 ```
 
+### Build Commands From Flags
+
+Start every smoke, evaluation, or PPO run with:
+
+```powershell
+python python/train.py [flags]
+```
+
+Placeholders used below:
+
+- `PATH`: filesystem path such as the Godot executable folder, a model directory, or a JSONL output path
+- `N`: integer count such as episodes, steps, timesteps, frames, or PPO rollout size
+- `X`: floating-point seconds for delays or timeouts
+- `LABEL`, `TAG`, `NAME`, `TEXT`: freeform metadata stored with tracked runs or promoted policies
+
+Recommended values below are starting points for the current docking curriculum, not hard limits.
+
+Shared launch and connection flags:
+
+- `--launch-project`: start the Godot project from Python before connecting. Recommended: enable this for most local runs; omit it only when Godot is already running and the bridge is ready.
+- `--godot-executable PATH`: point at the Godot executable or a folder that contains it. Recommended: use a local Godot 4.6 install path, and prefer the console build for headless runs.
+- `--host HOST`: TCP host for the RL bridge; defaults to `127.0.0.1`. Recommended: keep `127.0.0.1` unless you intentionally run the bridge on another machine or interface.
+- `--port PORT`: TCP port for the RL bridge; defaults to `8765`. Recommended: keep `8765` unless it conflicts, then choose another unused high port such as `8766-8799`.
+- `--connect-timeout X`: wait up to `X` seconds for the bridge connection. Recommended: `15-30` for headless launches, `30-90` for first visible launches, and `5-15` when connecting to an already running instance.
+- `--frames-per-step N`: advance `N` physics frames for each environment step; larger values make each action last longer in simulation time. Default: `8`. Recommended: `4-12` for most runs, with `8` as the baseline starting point.
+
 ### Headless Smoke Test
 
 This is the fastest way to confirm the bridge is working.
 
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --random-only --smoke-episodes 1 --smoke-steps 50
-```
+Relevant args:
 
-Tracked smoke example:
-
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --random-only --smoke-episodes 1 --smoke-steps 50 --run-label smoke-baseline --persona safe --training-technique smoke_validation
-```
+- `--random-only`: run the random-policy smoke path and exit instead of training PPO. Recommended: enable this for bridge validation runs and omit it for PPO training.
+- `--smoke-episodes N`: run `N` smoke episodes. Default: `3`. Recommended: `1-3`, with `1` as the fastest bridge check.
+- `--smoke-steps N`: cap each smoke episode at `N` environment steps. Default: `300`. Recommended: `25-100` for standalone smoke checks, with `50` as a good starting point.
+- `--run-label LABEL`: optional tracked run label for this smoke pass. Recommended: a short hyphenated slug with `2-4` words, such as `smoke-baseline` or `bridge-check`.
+- `--persona TAG`: optional behavior tag stored with the run, such as `safe`. Recommended: reuse a short stable vocabulary such as `safe`, `aggressive`, or `efficient`.
+- `--training-technique NAME`: optional label for the smoke recipe, such as `smoke_validation`. Recommended: use a short slug that identifies the setup, usually `1-4` underscore-separated terms.
 
 ### Watch Mode
 
 Watch mode opens the normal Godot window and slows down the step loop slightly so you can inspect what the ship is doing.
 
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.05 --random-only --smoke-episodes 1 --smoke-steps 50
-```
+Relevant args:
 
-If the first visible launch is slow and you hit a bridge timeout, retry with a longer startup window:
-
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.05 --connect-timeout 90 --random-only --smoke-episodes 1 --smoke-steps 50
-```
+- `--watch`: open the Godot instance in a visible window and disable headless mode. Recommended: use this for debugging, demos, and replay inspection; leave it off for long training runs.
+- `--watch-step-delay X`: add `X` seconds of real-time delay after each environment step while `--watch` is enabled. Default: `0.05`. Recommended: `0.02-0.10` for readable playback, or `0.0-0.02` if you want a visible but faster run.
+- `--connect-timeout X`: increase startup wait time if the first visible launch is slow. Recommended: `30-90` for watch mode, especially on the first startup.
+- `--log-steps`: print a concise per-step summary during smoke or evaluation runs. Recommended: enable it for short visible debugging runs and disable it for long replays.
+- `--log-step-details`: print the full debug payload returned by `RLBridge` for each step. Recommended: use it only for very short debugging passes, typically `1` episode with low step counts, because output grows quickly.
+- `--log-jsonl PATH`: write one JSON object per step to `PATH` for later analysis. Recommended: store these under `logs/` with a scenario-specific filename such as `logs/random_smoke.jsonl`.
 
 Notes:
 
 - Watch mode is still using structured state observations over TCP.
 - The agent is not learning from pixels.
 - Headless mode remains the better choice for long training runs.
-- Add `--log-steps` to print a concise per-step summary during smoke runs.
-- Add `--log-step-details` to print the full debug payload returned by `RLBridge`.
-- Add `--log-jsonl logs/random_smoke.jsonl` to capture one JSON object per step for later analysis.
 
 ### Connect to an Already Running Godot Instance
 
 If Godot is already open and the RL bridge is active, omit `--launch-project`:
 
-```powershell
-python python/train.py --random-only --smoke-episodes 1 --smoke-steps 50
-```
+Relevant args:
+
+- omit `--launch-project`: connect to the existing bridge instead of starting Godot. Recommended: do this only after you have manually opened Godot and confirmed the bridge is listening.
+- `--host HOST`: use a non-default host if the bridge is not on `127.0.0.1`. Recommended: keep `127.0.0.1` for local runs.
+- `--port PORT`: use a non-default TCP port if needed. Recommended: keep `8765` unless the default port is already in use.
+- `--connect-timeout X`: control how long Python waits for the bridge to accept the connection. Recommended: `5-15` is usually enough when the instance is already running.
+- combine this with `--random-only` for smoke, `--eval-model PATH` for replay, or the PPO flags below for training. Recommended: pair it with `--smoke-episodes 1-3` for smoke or `--eval-episodes 3-10` for replay.
 
 ### Saved Policy Evaluation
 
 Once you have a saved PPO model, you can replay it through the same bridge without starting a new training run. With the default package layout, pass the package directory to `--eval-model`.
 
-Headless evaluation:
+Headless evaluation args:
 
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --eval-model models/ppo_thruster_agent --eval-episodes 3 --eval-steps 300
-```
+- `--eval-model PATH`: load the saved PPO policy at `PATH` and run evaluation instead of training. Recommended: point at a package directory under `models/`, such as `models/ppo_baseline`; the loader also accepts direct `.zip` paths.
+- `--eval-episodes N`: run `N` evaluation episodes. Default: `3`. Recommended: `3-10` for quick checks and `10-20` when comparing candidate policies.
+- `--eval-steps N`: cap each evaluation episode at `N` environment steps. Default: `300`. Recommended: `200-400` so the policy has time to finish the docking task without hiding repeated timeouts.
+- `--stochastic-eval`: sample actions during evaluation instead of using deterministic policy output. Recommended: leave this off for regressions and side-by-side comparisons; enable it only when you want to inspect action variability.
 
-Visible replay:
+Visible replay adds:
 
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.05 --eval-model models/ppo_thruster_agent --eval-episodes 3 --eval-steps 300
-```
+- `--watch`: open the Godot instance in a visible window and disable headless mode during replay. Recommended: use it for visual inspection, not for bulk evaluation sweeps.
+- `--watch-step-delay X`: add `X` seconds of delay after each evaluation step so the replay is readable. Recommended: `0.02-0.10`, with `0.05` as a good default.
+- `--connect-timeout X`: increase startup wait time if the first visible launch is slow. Recommended: `30-90`.
+- `--log-steps`: print concise per-step summaries during replay. Recommended: turn it on when replaying `1-3` episodes interactively.
+- `--log-step-details`: print the full debug payload for each replay step. Recommended: keep it for one short debug replay only.
+- `--log-jsonl PATH`: write per-step evaluation data to `PATH`. Recommended: save under `logs/` with a policy-specific name such as `logs/ppo_baseline_eval.jsonl`.
 
 Notes:
 
@@ -354,24 +385,36 @@ The first useful PPO run for this project should stay simple:
 - keep the pre-training smoke phase short
 - save a checkpoint that you can replay in watch mode afterward
 
-Recommended baseline command:
+Relevant args:
 
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --smoke-episodes 1 --smoke-steps 8 --timesteps 100000 --ppo-n-steps 256 --ppo-batch-size 64 --model-output models/ppo_baseline
-```
+- `--smoke-episodes N`: run `N` random smoke episodes before PPO training starts. Default: `3`. Recommended: `1-2`, with `1` as the normal baseline choice.
+- `--smoke-steps N`: cap each pre-training smoke episode at `N` environment steps. Default: `300`. Recommended: `8-32`, with `8` for minimal overhead and `16-32` when you want a slightly stronger preflight check.
+- `--timesteps N`: train PPO for `N` total environment timesteps. Default: `100000`. Recommended: `50_000-200_000` for a first useful baseline, or `32-512` for a pure training smoke test.
+- `--ppo-n-steps N`: use rollout length `N` for each PPO update; smaller values are useful for short smoke runs. Default: `256`. Recommended: `128-512` for baseline runs and `32-64` for smoke tests.
+- `--ppo-batch-size N`: use batch size `N` for PPO updates. Default: `64`. Recommended: `32-128` for baseline runs, keep it less than or equal to `--ppo-n-steps`, and use `32` for tiny smoke tests.
+- `--model-output PATH`: save the trained policy package under `PATH`. Recommended: write to a descriptive directory under `models/`, such as `models/ppo_baseline_safe`, and omit any file extension.
+- `--training-log-jsonl PATH`: write per-episode PPO summaries to `PATH`; if omitted, the default is `logs/<model_name>_training.jsonl`. Recommended: keep these under `logs/` with a name derived from the model slug.
 
-Tracked baseline example with categorization:
+Tracking and policy metadata you can add to the same training command:
 
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --smoke-episodes 1 --smoke-steps 8 --timesteps 100000 --ppo-n-steps 256 --ppo-batch-size 64 --model-output models/ppo_baseline_safe --run-label baseline-safe-v1 --persona safe --training-technique ppo_reward_baseline --policy-id safe-docker-v1 --policy-label "Safe Docker V1" --policy-objective "Dock reliably without high-speed goal entries" --policy-intended-use "Reference safe docking baseline" --policy-algorithm PPO
-```
+- `--run-label LABEL`: human-readable run name stored in tracking output. Recommended: a short slug with `2-5` terms, such as `baseline-safe-v1`.
+- `--persona TAG`: behavior category for the run or promoted policy, such as `safe`. Recommended: keep the vocabulary small and reusable, for example `safe`, `aggressive`, or `efficient`.
+- `--training-technique NAME`: label for the reward recipe, curriculum, or training setup. Recommended: use `1-4` concise slug terms such as `ppo_reward_baseline`.
+- `--policy-id NAME`: curated policy identifier to upsert into `policies.csv`. Recommended: use a stable slug with a version suffix, such as `safe-docker-v1`.
+- `--policy-label LABEL`: curated display label for the promoted policy. Recommended: `2-6` human-readable words.
+- `--policy-objective TEXT`: short statement of what the policy is optimized to do. Recommended: a single sentence fragment of roughly `5-15` words.
+- `--policy-intended-use TEXT`: operator-facing note describing when to use the policy. Recommended: a short sentence fragment of roughly `5-15` words.
+- `--policy-algorithm NAME`: algorithm label stored with policy metadata, such as `PPO`. Recommended: use `PPO` for current runs unless you add another training path.
+- `--policy-best-in-category`: mark the policy as the current best option in its category. Recommended: set this on only one current preferred policy per persona or use-case bucket.
+- `--policy-notes TEXT`: curated notes stored with the policy metadata. Recommended: `1-2` short sentences summarizing why the policy was promoted.
+- `--run-notes TEXT`: freeform notes stored only with the tracked run manifest. Recommended: `1-2` short sentences describing what changed in this run.
 
 What this does:
 
-- runs one short random smoke episode first so the bridge is exercised before PPO starts
-- trains PPO for 100,000 timesteps with a modest rollout size
-- writes the saved policy package to `models/ppo_baseline/`
-- writes per-episode PPO training summaries to `logs/ppo_baseline_training.jsonl` by default
+- runs the configured smoke pass first so the bridge is exercised before PPO starts
+- trains PPO for the total from `--timesteps` using the rollout and batch sizes you choose
+- writes the saved policy package under the path from `--model-output`
+- writes per-episode PPO training summaries to the default or custom JSONL path
 - writes a run manifest and summary under `experiments/runs/<run_id>/`
 - updates `experiments/runs.csv` and, when `--policy-id` is set, `experiments/policies.csv`
 
@@ -386,39 +429,45 @@ Each PPO training JSONL record includes:
 
 If you want a different training-log path, pass `--training-log-jsonl`.
 
-For a quick training smoke test instead of a real baseline, reduce the timesteps and rollout size:
+For a quick training smoke test instead of a real baseline, reduce these values:
 
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --smoke-episodes 1 --smoke-steps 8 --timesteps 64 --ppo-n-steps 32 --ppo-batch-size 32 --model-output models/ppo_smoke_agent
-```
+- `--timesteps N`: use a small total such as `32-512`; `64` is a reasonable smoke-test starting point.
+- `--ppo-n-steps N`: use a short rollout such as `32-64`.
+- `--ppo-batch-size N`: use a small batch such as `32`, and keep it less than or equal to `--ppo-n-steps`.
+- `--model-output PATH`: write to a disposable output path such as `models/ppo_smoke_agent`.
+- keep `--smoke-episodes N` in the `1-2` range and `--smoke-steps N` in the `8-16` range.
 
 ### Can I Watch?
 
 Yes, but watch mode is mainly for inspection, not for the main long run.
 
-Visible training:
+Visible training adds these flags on top of the baseline training flags:
 
-```powershell
-& ".\.venv313\Scripts\python.exe" python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.02 --smoke-episodes 1 --smoke-steps 8 --timesteps 100000 --ppo-n-steps 256 --ppo-batch-size 64 --model-output models/ppo_baseline_watch
-```
+- `--watch`: open the Godot instance in a visible window and disable headless mode during training. Recommended: use it only for inspection runs, not the main long baseline.
+- `--watch-step-delay X`: slow each environment step by `X` seconds so motion is readable. Recommended: `0.02-0.05` for visible training, which is usually enough to follow the ship without dragging the run too far.
+- keep the same `--smoke-episodes N`, `--smoke-steps N`, `--timesteps N`, `--ppo-n-steps N`, `--ppo-batch-size N`, and `--model-output PATH` values you would use for the matching headless run. Recommended: if you insist on visible training, stay near the low end of the baseline ranges so the run remains manageable.
 
 Recommended workflow:
 
 1. Train headless.
 2. Save a checkpoint.
-3. Replay the saved model in watch mode.
+3. Replay the saved model in watch mode with `--eval-model PATH`, `--watch`, and `--watch-step-delay X`.
 
-Example replay command:
+### Promote a Tracked Run
 
-```powershell
-python python/train.py --launch-project --godot-executable "C:\Users\carth\Godot\Godot 4.6" --watch --watch-step-delay 0.05 --eval-model models/ppo_baseline --eval-episodes 3 --eval-steps 300
-```
+Relevant args:
 
-Example promotion command for a previously tracked run:
-
-```powershell
-python python/train.py --promote-run 20260512T193636Z-safe-docker-baseline-v1-8750b1cc --tracking-dir experiments --policy-id safe-docker-baseline-v1 --policy-label "Safe Docker Baseline V1" --persona safe --training-technique ppo_reward_baseline --policy-objective "Dock reliably without high-speed goal entries" --policy-intended-use "Reference safe docking baseline for reward tuning and regression checks" --policy-algorithm PPO --policy-best-in-category --policy-notes "Promoted after the first longer PPO baseline run."
-```
+- `--promote-run RUN_ID_OR_PATH`: select the tracked run to promote by run id or manifest path. Recommended: use the full run id from `experiments/runs.csv`; use a manifest path mainly for automation.
+- `--tracking-dir PATH`: directory holding `runs.csv`, `policies.csv`, `milestones.csv`, and run manifests; defaults to `experiments`. Recommended: keep `experiments` unless you intentionally maintain separate registries.
+- `--policy-id NAME`: curated policy identifier to upsert into `policies.csv`. Recommended: a stable slug with a version suffix such as `safe-docker-v1`.
+- `--policy-label LABEL`: curated display label for the promoted policy. Recommended: `2-6` human-readable words.
+- `--persona TAG`: behavior category for the curated entry. Recommended: reuse the same small vocabulary as training runs, such as `safe`, `aggressive`, or `efficient`.
+- `--training-technique NAME`: label for the training recipe used by the promoted run. Recommended: `1-4` slug terms matching the originating run.
+- `--policy-objective TEXT`: short statement of the optimization target. Recommended: `5-15` words.
+- `--policy-intended-use TEXT`: operator-facing note describing when to use the policy. Recommended: `5-15` words.
+- `--policy-algorithm NAME`: algorithm label stored with the policy metadata. Recommended: use `PPO` for the current training pipeline.
+- `--policy-best-in-category`: mark the promoted policy as the preferred entry in its category. Recommended: set this on only the single policy you currently want operators to prefer.
+- `--policy-notes TEXT`: curated notes stored with the promoted policy. Recommended: `1-2` short sentences on why the run earned promotion.
 
 ### What To Watch In The Results
 

@@ -16,6 +16,9 @@ extends Node
 @export_range(0.0, 100.0, 0.001, "or_greater") var progress_reward_scale := 0.5
 @export_range(0.0, 100000.0, 0.1, "or_greater") var approach_bonus_radius := 120.0
 @export_range(0.0, 1000.0, 0.001, "or_greater") var approach_bonus_scale := 25.0
+@export_range(0.0, 100.0, 0.001, "or_greater") var trajectory_alignment_reward_scale := 5.0
+@export_range(0.001, 10000.0, 0.1, "or_greater") var trajectory_reward_distance_offset := 50.0
+@export_range(0.0, 1000.0, 0.01, "or_greater") var trajectory_reward_min_relative_speed := 0.25
 @export_range(0.0, 100.0, 0.001, "or_greater") var speed_penalty_scale := 0.02
 @export_range(0.0, 100000.0, 0.1, "or_greater") var speed_penalty_distance := 600.0
 @export_range(0.0, 100.0, 0.001, "or_greater") var thruster_penalty_scale := 0.001
@@ -329,6 +332,9 @@ func _build_reward_config() -> Dictionary:
 		"progress_reward_scale": progress_reward_scale,
 		"approach_bonus_radius": approach_bonus_radius,
 		"approach_bonus_scale": approach_bonus_scale,
+		"trajectory_alignment_reward_scale": trajectory_alignment_reward_scale,
+		"trajectory_reward_distance_offset": trajectory_reward_distance_offset,
+		"trajectory_reward_min_relative_speed": trajectory_reward_min_relative_speed,
 		"speed_penalty_scale": speed_penalty_scale,
 		"speed_penalty_distance": speed_penalty_distance,
 		"thruster_penalty_scale": thruster_penalty_scale,
@@ -424,13 +430,21 @@ func _build_step_response(
 
 func _compute_reward_terms() -> Dictionary:
 	# These terms are intentionally simple for the first curriculum:
-	# move toward the goal, keep relative speed low, and avoid wasting thrust.
+	# move toward the goal, bias trajectories that will pass near it, keep
+	# relative speed low, and avoid wasting thrust.
 	var current_goal_distance := _get_goal_distance()
 	var goal_distance_delta := previous_goal_distance - current_goal_distance
 	var progress_reward := goal_distance_delta * progress_reward_scale
 	var previous_goal_potential := _compute_goal_potential(previous_goal_distance)
 	var current_goal_potential := _compute_goal_potential(current_goal_distance)
 	var approach_bonus := (current_goal_potential - previous_goal_potential) * approach_bonus_scale
+	var relative_velocity := goal_area.get_relative_velocity()
+	var trajectory_closest_distance := _compute_trajectory_closest_goal_distance(relative_velocity, current_goal_distance)
+	var trajectory_closing_time := _compute_trajectory_closing_time(relative_velocity)
+	var trajectory_alignment_reward := _compute_trajectory_alignment_reward(
+		current_goal_distance,
+		trajectory_closest_distance,
+	)
 	var speed_penalty_weight := _get_speed_penalty_weight(current_goal_distance)
 	var speed_penalty := goal_area.get_relative_speed() * speed_penalty_scale * speed_penalty_weight
 	var throttles := ship.get_thruster_controller().get_current_throttles()
@@ -439,7 +453,14 @@ func _compute_reward_terms() -> Dictionary:
 		throttle_sum += throttle_value
 	var thruster_penalty := throttle_sum * thruster_penalty_scale
 	var living_penalty := float(max(pending_action_frames, 1)) * living_penalty_per_frame
-	var total_reward := progress_reward + approach_bonus - speed_penalty - thruster_penalty - living_penalty
+	var total_reward := (
+		progress_reward
+		+ approach_bonus
+		+ trajectory_alignment_reward
+		- speed_penalty
+		- thruster_penalty
+		- living_penalty
+	)
 
 	return {
 		"goal_distance_delta": goal_distance_delta,
@@ -447,6 +468,9 @@ func _compute_reward_terms() -> Dictionary:
 		"current_goal_potential": current_goal_potential,
 		"progress": progress_reward,
 		"approach_bonus": approach_bonus,
+		"trajectory_closest_distance": trajectory_closest_distance,
+		"trajectory_closing_time": trajectory_closing_time,
+		"trajectory_alignment_reward": trajectory_alignment_reward,
 		"speed_penalty": speed_penalty,
 		"speed_penalty_weight": speed_penalty_weight,
 		"thruster_penalty": thruster_penalty,
@@ -461,6 +485,36 @@ func _compute_goal_potential(goal_distance: float) -> float:
 		return 0.0
 
 	return exp(-goal_distance / approach_bonus_radius)
+
+
+func _compute_trajectory_closing_time(relative_velocity: Vector3) -> float:
+	var relative_speed_squared := relative_velocity.length_squared()
+	var min_speed_squared := trajectory_reward_min_relative_speed * trajectory_reward_min_relative_speed
+	if relative_speed_squared <= min_speed_squared:
+		return 0.0
+
+	var goal_offset_world := goal_area.global_position - ship.global_position
+	return max(goal_offset_world.dot(relative_velocity) / relative_speed_squared, 0.0)
+
+
+func _compute_trajectory_closest_goal_distance(relative_velocity: Vector3, current_goal_distance: float) -> float:
+	var closing_time := _compute_trajectory_closing_time(relative_velocity)
+	if closing_time <= 0.0:
+		return current_goal_distance
+
+	var goal_offset_world := goal_area.global_position - ship.global_position
+	var closest_offset := goal_offset_world - (relative_velocity * closing_time)
+	return closest_offset.length()
+
+
+func _compute_trajectory_alignment_reward(current_goal_distance: float, closest_goal_distance: float) -> float:
+	if trajectory_alignment_reward_scale <= 0.0:
+		return 0.0
+
+	var distance_offset: float = max(trajectory_reward_distance_offset, 0.001)
+	var current_inverse_distance: float = 1.0 / (current_goal_distance + distance_offset)
+	var closest_inverse_distance: float = 1.0 / (closest_goal_distance + distance_offset)
+	return max(closest_inverse_distance - current_inverse_distance, 0.0) * trajectory_alignment_reward_scale
 
 
 func _get_speed_penalty_weight(goal_distance: float) -> float:

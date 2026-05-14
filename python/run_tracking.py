@@ -15,6 +15,8 @@ from typing import Any, Mapping
 MODEL_PACKAGE_FILENAME = "policy.zip"
 MODEL_PACKAGE_MANIFEST_FILENAME = "manifest.json"
 MODEL_PACKAGE_SUMMARY_FILENAME = "summary.json"
+STEP_LOG_PATH_FIELDNAME = "step_log_path"
+LEGACY_STEP_LOG_PATH_FIELDNAME = "step_log_jsonl"
 
 
 RUNS_FIELDNAMES = [
@@ -34,7 +36,7 @@ RUNS_FIELDNAMES = [
 	"model_path",
 	"model_artifact_path",
 	"training_log_jsonl",
-	"step_log_jsonl",
+	STEP_LOG_PATH_FIELDNAME,
 	"environment_fingerprint",
 	"reward_config_hash",
 	"episode_count",
@@ -312,7 +314,7 @@ class RunTracker:
 				"model_path": "",
 				"model_artifact_path": "",
 				"training_log_jsonl": "",
-				"step_log_jsonl": "",
+				STEP_LOG_PATH_FIELDNAME: "",
 			},
 			"environment": self.environment,
 			"training": {},
@@ -354,7 +356,8 @@ class RunTracker:
 		if training_log_path is not None:
 			self.manifest["paths"]["training_log_jsonl"] = Path(training_log_path).as_posix()
 		if step_log_path is not None:
-			self.manifest["paths"]["step_log_jsonl"] = Path(step_log_path).as_posix()
+			self.manifest["paths"][STEP_LOG_PATH_FIELDNAME] = Path(step_log_path).as_posix()
+			self.manifest["paths"].pop(LEGACY_STEP_LOG_PATH_FIELDNAME, None)
 		self._write_json(self.manifest_path, self.manifest)
 
 	def record_episode(
@@ -445,7 +448,7 @@ class RunTracker:
 			"model_path": self.manifest["paths"]["model_path"],
 			"model_artifact_path": self.manifest["paths"].get("model_artifact_path", ""),
 			"training_log_jsonl": self.manifest["paths"]["training_log_jsonl"],
-			"step_log_jsonl": self.manifest["paths"]["step_log_jsonl"],
+			STEP_LOG_PATH_FIELDNAME: self.manifest["paths"].get(STEP_LOG_PATH_FIELDNAME, ""),
 			"environment_fingerprint": self.environment.get("environment_fingerprint", ""),
 			"reward_config_hash": self.environment.get("reward_config_hash", ""),
 			"episode_count": summary.get("episode_count"),

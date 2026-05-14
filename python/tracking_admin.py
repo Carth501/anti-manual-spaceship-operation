@@ -6,12 +6,14 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from run_tracking import (
+	LEGACY_STEP_LOG_PATH_FIELDNAME,
 	MILESTONES_FIELDNAMES,
 	MODEL_PACKAGE_FILENAME,
 	MODEL_PACKAGE_MANIFEST_FILENAME,
 	MODEL_PACKAGE_SUMMARY_FILENAME,
 	POLICIES_FIELDNAMES,
 	RUNS_FIELDNAMES,
+	STEP_LOG_PATH_FIELDNAME,
 	merge_policy_registry_row,
 )
 
@@ -134,7 +136,8 @@ def load_tracked_run_manifest(manifest_path: str | Path) -> dict[str, Any]:
 	summary_path = Path(paths.get("summary_path") or (run_dir / "summary.json"))
 	paths["summary_path"] = summary_path.as_posix()
 	paths.setdefault("training_log_jsonl", "")
-	paths.setdefault("step_log_jsonl", "")
+	legacy_step_log_path = str(paths.pop(LEGACY_STEP_LOG_PATH_FIELDNAME, "") or "")
+	paths.setdefault(STEP_LOG_PATH_FIELDNAME, legacy_step_log_path)
 	paths.setdefault("model_path", "")
 	paths.setdefault("model_artifact_path", _derive_model_artifact_path(paths.get("model_path", "")))
 	manifest["paths"] = paths
@@ -182,7 +185,7 @@ def _build_run_row(manifest: Mapping[str, Any]) -> dict[str, Any]:
 		"model_path": paths.get("model_path", ""),
 		"model_artifact_path": paths.get("model_artifact_path", ""),
 		"training_log_jsonl": paths.get("training_log_jsonl", ""),
-		"step_log_jsonl": paths.get("step_log_jsonl", ""),
+		STEP_LOG_PATH_FIELDNAME: paths.get(STEP_LOG_PATH_FIELDNAME, ""),
 		"environment_fingerprint": environment.get("environment_fingerprint", ""),
 		"reward_config_hash": environment.get("reward_config_hash", ""),
 		"episode_count": summary.get("episode_count", ""),

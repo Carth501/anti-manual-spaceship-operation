@@ -7,4 +7,5 @@
 .venv313/
 .venv*/
 models/
+logs/
 /experiments/

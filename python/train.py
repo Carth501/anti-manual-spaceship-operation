@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import shlex
 import subprocess
@@ -17,6 +18,43 @@ from tracking_admin import promote_run, rebuild_tracking_registries
 
 MODEL_PACKAGE_FILENAME = "policy.zip"
 MODEL_PACKAGE_MANIFEST_FILENAME = "manifest.json"
+
+TRAINING_STEP_CSV_FIELDNAMES = (
+	"timesteps",
+	"episode",
+	"episode_step",
+	"episode_frames",
+	"reward",
+	"episode_total_reward",
+	"done",
+	"terminated",
+	"truncated",
+	"terminal_reason",
+	"goal_distance",
+	"relative_speed",
+	"is_inside_goal",
+	"is_goal_completed",
+	"goal_distance_delta",
+	"previous_goal_potential",
+	"current_goal_potential",
+	"progress",
+	"approach_bonus",
+	"trajectory_closest_distance",
+	"trajectory_closing_time",
+	"trajectory_alignment_reward",
+	"speed_penalty",
+	"speed_penalty_weight",
+	"thruster_penalty",
+	"living_penalty",
+	"dense_total",
+	"goal_entry_bonus",
+	"success_bonus",
+	"out_of_bounds_penalty",
+	"timeout_penalty",
+	"total",
+	"throttle_sum",
+	"throttle_max",
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -146,6 +184,11 @@ def parse_args() -> argparse.Namespace:
 		help="Write per-episode PPO training summaries to this JSONL file. Defaults to logs/<model_name>_training.jsonl.",
 	)
 	parser.add_argument(
+		"--training-step-csv",
+		default=None,
+		help="Write one CSV row per PPO env step to this path. Defaults to logs/<model_name>_training_steps.csv.",
+	)
+	parser.add_argument(
 		"--ppo-n-steps",
 		type=int,
 		default=256,
@@ -164,6 +207,11 @@ def parse_args() -> argparse.Namespace:
 def _default_training_log_path(model_output: str) -> Path:
 	model_path = Path(model_output)
 	return Path("logs") / f"{model_path.stem}_training.jsonl"
+
+
+def _default_training_step_csv_path(model_output: str) -> Path:
+	model_path = Path(model_output)
+	return Path("logs") / f"{model_path.stem}_training_steps.csv"
 
 
 def _get_invocation_command() -> str:
@@ -700,6 +748,7 @@ def run_ppo_training(
 	ppo_batch_size: int,
 	policy_input_config: dict[str, Any] | None,
 	training_log_jsonl: str | None,
+	training_step_csv: str | None,
 	tracker: RunTracker | None,
 ) -> tuple[Path, Path, int]:
 	try:
@@ -833,13 +882,110 @@ def run_ppo_training(
 				log_file.close()
 				self.log_file = None
 
+	class TrainingStepCsvLogger(BaseCallback):
+		def __init__(self, log_path: Path) -> None:
+			super().__init__(verbose=0)
+			self.log_path = log_path
+			self.log_file = None
+			self.writer: csv.DictWriter[str] | None = None
+			self.episode_index = 0
+			self.episode_step_count = 0
+			self.episode_reward_total = 0.0
+
+		def _on_training_start(self) -> None:
+			self.log_path.parent.mkdir(parents=True, exist_ok=True)
+			self.log_file = self.log_path.open("w", encoding="utf-8", newline="")
+			self.writer = csv.DictWriter(self.log_file, fieldnames=list(TRAINING_STEP_CSV_FIELDNAMES))
+			self.writer.writeheader()
+			self.log_file.flush()
+			if tracker is not None:
+				tracker.attach_paths(step_log_path=self.log_path)
+			print("training_step_csv=%s" % self.log_path.as_posix())
+
+		def _on_step(self) -> bool:
+			rewards = self.locals.get("rewards")
+			dones = self.locals.get("dones")
+			infos = self.locals.get("infos")
+			if rewards is None or dones is None or infos is None or len(infos) == 0:
+				return True
+			writer = self.writer
+			log_file = self.log_file
+			if writer is None or log_file is None:
+				return True
+
+			reward = float(rewards[0])
+			done = bool(dones[0])
+			info = dict(infos[0] or {})
+			reward_terms = dict(info.get("reward_terms", {}))
+			debug_payload = dict(info.get("debug", {}))
+			terminal_reason = str(info.get("terminal_reason", "in_progress"))
+			terminated = done and terminal_reason != "timeout"
+			truncated = done and terminal_reason == "timeout"
+
+			self.episode_step_count += 1
+			self.episode_reward_total += reward
+
+			writer.writerow({
+				"timesteps": int(self.num_timesteps),
+				"episode": self.episode_index,
+				"episode_step": self.episode_step_count,
+				"episode_frames": int(_coerce_float(info.get("episode_frames", 0))),
+				"reward": reward,
+				"episode_total_reward": self.episode_reward_total,
+				"done": done,
+				"terminated": terminated,
+				"truncated": truncated,
+				"terminal_reason": terminal_reason,
+				"goal_distance": _coerce_float(info.get("goal_distance", 0.0)),
+				"relative_speed": _coerce_float(info.get("relative_speed", 0.0)),
+				"is_inside_goal": bool(info.get("is_inside_goal", False)),
+				"is_goal_completed": bool(info.get("is_goal_completed", False)),
+				"goal_distance_delta": _coerce_float(reward_terms.get("goal_distance_delta", 0.0)),
+				"previous_goal_potential": _coerce_float(reward_terms.get("previous_goal_potential", 0.0)),
+				"current_goal_potential": _coerce_float(reward_terms.get("current_goal_potential", 0.0)),
+				"progress": _coerce_float(reward_terms.get("progress", 0.0)),
+				"approach_bonus": _coerce_float(reward_terms.get("approach_bonus", 0.0)),
+				"trajectory_closest_distance": _coerce_float(reward_terms.get("trajectory_closest_distance", 0.0)),
+				"trajectory_closing_time": _coerce_float(reward_terms.get("trajectory_closing_time", 0.0)),
+				"trajectory_alignment_reward": _coerce_float(reward_terms.get("trajectory_alignment_reward", 0.0)),
+				"speed_penalty": _coerce_float(reward_terms.get("speed_penalty", 0.0)),
+				"speed_penalty_weight": _coerce_float(reward_terms.get("speed_penalty_weight", 0.0)),
+				"thruster_penalty": _coerce_float(reward_terms.get("thruster_penalty", 0.0)),
+				"living_penalty": _coerce_float(reward_terms.get("living_penalty", 0.0)),
+				"dense_total": _coerce_float(reward_terms.get("dense_total", 0.0)),
+				"goal_entry_bonus": _coerce_float(reward_terms.get("goal_entry_bonus", 0.0)),
+				"success_bonus": _coerce_float(reward_terms.get("success_bonus", 0.0)),
+				"out_of_bounds_penalty": _coerce_float(reward_terms.get("out_of_bounds_penalty", 0.0)),
+				"timeout_penalty": _coerce_float(reward_terms.get("timeout_penalty", 0.0)),
+				"total": _coerce_float(reward_terms.get("total", reward)),
+				"throttle_sum": _coerce_float(debug_payload.get("throttle_sum", 0.0)),
+				"throttle_max": _coerce_float(debug_payload.get("throttle_max", 0.0)),
+			})
+			if done:
+				log_file.flush()
+				self.episode_index += 1
+				self.episode_step_count = 0
+				self.episode_reward_total = 0.0
+			return True
+
+		def _on_training_end(self) -> None:
+			log_file = self.log_file
+			if log_file is not None:
+				log_file.flush()
+				log_file.close()
+				self.log_file = None
+			self.writer = None
+
 	model_reference_path = _resolve_model_reference_path(model_output)
 	artifact_path = _resolve_model_artifact_path(model_output)
 	artifact_path.parent.mkdir(parents=True, exist_ok=True)
 	training_log_path = Path(training_log_jsonl) if training_log_jsonl else _default_training_log_path(model_output)
+	training_step_csv_path = Path(training_step_csv) if training_step_csv else _default_training_step_csv_path(model_output)
 	rollout_steps = max(int(ppo_n_steps), 2)
 	batch_size = max(int(ppo_batch_size), 2)
 	batch_size = min(batch_size, rollout_steps)
+	if tracker is not None:
+		tracker.attach_paths(training_log_path=training_log_path, step_log_path=training_step_csv_path)
 	resolved_policy_input_config = dict(policy_input_config or {})
 	policy_kwargs = _build_policy_kwargs(resolved_policy_input_config)
 	if policy_kwargs:
@@ -871,13 +1017,17 @@ def run_ppo_training(
 	if policy_kwargs:
 		model_kwargs["policy_kwargs"] = policy_kwargs
 	model = PPO("MlpPolicy", env, **model_kwargs)
-	model.learn(total_timesteps=timesteps, callback=EpisodeRewardLogger(training_log_path))
+	model.learn(
+		total_timesteps=timesteps,
+		callback=[EpisodeRewardLogger(training_log_path), TrainingStepCsvLogger(training_step_csv_path)],
+	)
 	model.save(artifact_path.as_posix())
 	if tracker is not None:
 		tracker.attach_paths(
 			model_path=model_reference_path,
 			model_artifact_path=artifact_path,
 			training_log_path=training_log_path,
+			step_log_path=training_step_csv_path,
 		)
 	return model_reference_path, training_log_path, int(getattr(model, "num_timesteps", timesteps))
 
@@ -1187,6 +1337,7 @@ def main() -> None:
 			ppo_batch_size=args.ppo_batch_size,
 			policy_input_config=policy_input_config,
 			training_log_jsonl=args.training_log_jsonl,
+			training_step_csv=args.training_step_csv,
 			tracker=tracker,
 		)
 		tracker.finalize(

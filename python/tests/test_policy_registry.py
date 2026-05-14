@@ -13,7 +13,7 @@ if str(PROJECT_PYTHON_DIR) not in sys.path:
 	sys.path.insert(0, str(PROJECT_PYTHON_DIR))
 
 from run_tracking import RunTracker  # noqa: E402
-from tracking_admin import rebuild_tracking_registries  # noqa: E402
+from tracking_admin import load_tracked_run_manifest, rebuild_tracking_registries  # noqa: E402
 
 
 class PolicyRegistryTests(unittest.TestCase):
@@ -277,6 +277,43 @@ class PolicyRegistryTests(unittest.TestCase):
 			self.assertEqual(rows[0]["updated_at"], "2026-05-12T11:00:00Z")
 			self.assertEqual(rows[0]["label"], "Safe Docker V1")
 			self.assertEqual(rows[0]["mean_episode_reward"], "2.0")
+
+	def test_rebuild_normalizes_legacy_step_log_field(self) -> None:
+		with tempfile.TemporaryDirectory() as temp_dir:
+			tracking_dir = Path(temp_dir) / "experiments"
+			tracker = RunTracker(
+				tracking_dir=tracking_dir,
+				mode="training",
+				args={},
+				environment={
+					"environment_fingerprint": "env-fingerprint",
+					"reward_config_hash": "reward-hash",
+				},
+				run_label="legacy-step-log",
+			)
+			tracker.finalize(
+				status="completed",
+				total_timesteps=8,
+				step_log_path="logs/legacy_steps.csv",
+			)
+
+			manifest = json.loads(tracker.manifest_path.read_text(encoding="utf-8"))
+			paths = dict(manifest.get("paths") or {})
+			paths["step_log_jsonl"] = paths.pop("step_log_path", "")
+			manifest["paths"] = paths
+			tracker.manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+			loaded_manifest = load_tracked_run_manifest(tracker.manifest_path)
+			self.assertEqual(loaded_manifest["paths"]["step_log_path"], "logs/legacy_steps.csv")
+			self.assertNotIn("step_log_jsonl", loaded_manifest["paths"])
+
+			counts = rebuild_tracking_registries(tracking_dir)
+
+			rows = _read_csv_rows(tracking_dir / "runs.csv")
+			self.assertEqual(counts["run_count"], 1)
+			self.assertIn("step_log_path", rows[0])
+			self.assertNotIn("step_log_jsonl", rows[0])
+			self.assertEqual(rows[0]["step_log_path"], "logs/legacy_steps.csv")
 
 
 def _read_csv_rows(path: Path) -> list[dict[str, str]]:

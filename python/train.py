@@ -56,6 +56,12 @@ TRAINING_STEP_CSV_FIELDNAMES = (
 	"throttle_max",
 )
 
+REWARD_TIMELINE_CSV_FIELDNAMES = (
+	"timesteps",
+	"reward",
+	"episode_total_reward",
+)
+
 
 def parse_args() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description="Train or smoke-test the Godot thruster RL environment.")
@@ -189,6 +195,11 @@ def parse_args() -> argparse.Namespace:
 		help="Write one CSV row per PPO env step to this path. Defaults to logs/<model_name>_training_steps.csv.",
 	)
 	parser.add_argument(
+		"--reward-timeline-csv",
+		default=None,
+		help="Write a per-run reward timeline CSV with timesteps and reward values. Defaults to the tracked run log bundle folder.",
+	)
+	parser.add_argument(
 		"--ppo-n-steps",
 		type=int,
 		default=256,
@@ -204,14 +215,60 @@ def parse_args() -> argparse.Namespace:
 	return parser.parse_args()
 
 
-def _default_training_log_path(model_output: str) -> Path:
-	model_path = Path(model_output)
-	return Path("logs") / f"{model_path.stem}_training.jsonl"
+def _default_run_log_dir(tracker: RunTracker | None) -> Path:
+	if tracker is not None:
+		return tracker.run_dir / "logs"
+	return Path("logs")
 
 
-def _default_training_step_csv_path(model_output: str) -> Path:
+def _default_training_log_path(model_output: str, tracker: RunTracker | None = None) -> Path:
 	model_path = Path(model_output)
-	return Path("logs") / f"{model_path.stem}_training_steps.csv"
+	return _default_run_log_dir(tracker) / f"{model_path.stem}_training.jsonl"
+
+
+def _default_training_step_csv_path(model_output: str, tracker: RunTracker | None = None) -> Path:
+	model_path = Path(model_output)
+	return _default_run_log_dir(tracker) / f"{model_path.stem}_training_steps.csv"
+
+
+def _default_reward_timeline_csv_path(name_stem: str, tracker: RunTracker | None = None) -> Path:
+	if tracker is not None:
+		return _default_run_log_dir(tracker) / "reward_timeline.csv"
+	name_path = Path(name_stem)
+	return _default_run_log_dir(tracker) / f"{name_path.stem}_reward_timeline.csv"
+
+
+class RewardTimelineCsvWriter:
+	def __init__(self, path: Path) -> None:
+		self.path = path
+		self.log_file = None
+		self.writer: csv.DictWriter[str] | None = None
+
+	def open(self) -> None:
+		self.path.parent.mkdir(parents=True, exist_ok=True)
+		self.log_file = self.path.open("w", encoding="utf-8", newline="")
+		self.writer = csv.DictWriter(self.log_file, fieldnames=list(REWARD_TIMELINE_CSV_FIELDNAMES))
+		self.writer.writeheader()
+		self.log_file.flush()
+
+	def write_row(self, *, timesteps: int, reward: float, episode_total_reward: float) -> None:
+		writer = self.writer
+		if writer is None:
+			return
+		writer.writerow({
+			"timesteps": int(timesteps),
+			"reward": float(reward),
+			"episode_total_reward": float(episode_total_reward),
+		})
+
+	def close(self) -> None:
+		log_file = self.log_file
+		if log_file is None:
+			return
+		log_file.flush()
+		log_file.close()
+		self.log_file = None
+		self.writer = None
 
 
 def _get_invocation_command() -> str:
@@ -657,10 +714,18 @@ def run_random_smoke(
 	log_steps: bool = False,
 	log_step_details: bool = False,
 	log_jsonl: str | None = None,
+	reward_timeline_csv: str | None = None,
 	tracker: RunTracker | None = None,
 ) -> None:
 	jsonl_path = Path(log_jsonl) if log_jsonl else None
 	jsonl_file = None
+	reward_timeline_path = (
+		Path(reward_timeline_csv)
+		if reward_timeline_csv
+		else _default_reward_timeline_csv_path("random_smoke", tracker)
+	)
+	reward_timeline_writer = RewardTimelineCsvWriter(reward_timeline_path)
+	reward_timeline_writer.open()
 	if jsonl_path is not None:
 		jsonl_path.parent.mkdir(parents=True, exist_ok=True)
 		jsonl_file = jsonl_path.open("w", encoding="utf-8")
@@ -669,6 +734,7 @@ def run_random_smoke(
 			jsonl_file.write(json.dumps(tracker.header_record()) + "\n")
 
 	try:
+		run_timesteps = 0
 		for episode in range(episodes):
 			observation, info = env.reset()
 			total_reward = 0.0
@@ -677,6 +743,12 @@ def run_random_smoke(
 				action = env.action_space.sample().astype(np.float32)
 				observation, reward, terminated, truncated, last_info = env.step(action)
 				total_reward += reward
+				run_timesteps += 1
+				reward_timeline_writer.write_row(
+					timesteps=run_timesteps,
+					reward=reward,
+					episode_total_reward=total_reward,
+				)
 				debug_payload = dict(last_info.get("debug", {}))
 
 				if log_steps or log_step_details:
@@ -738,6 +810,7 @@ def run_random_smoke(
 	finally:
 		if jsonl_file is not None:
 			jsonl_file.close()
+		reward_timeline_writer.close()
 
 
 def run_ppo_training(
@@ -749,6 +822,7 @@ def run_ppo_training(
 	policy_input_config: dict[str, Any] | None,
 	training_log_jsonl: str | None,
 	training_step_csv: str | None,
+	reward_timeline_csv: str | None,
 	tracker: RunTracker | None,
 ) -> tuple[Path, Path, int]:
 	try:
@@ -883,11 +957,13 @@ def run_ppo_training(
 				self.log_file = None
 
 	class TrainingStepCsvLogger(BaseCallback):
-		def __init__(self, log_path: Path) -> None:
+		def __init__(self, log_path: Path, reward_timeline_path: Path) -> None:
 			super().__init__(verbose=0)
 			self.log_path = log_path
+			self.reward_timeline_path = reward_timeline_path
 			self.log_file = None
 			self.writer: csv.DictWriter[str] | None = None
+			self.reward_timeline_writer = RewardTimelineCsvWriter(reward_timeline_path)
 			self.episode_index = 0
 			self.episode_step_count = 0
 			self.episode_reward_total = 0.0
@@ -898,9 +974,11 @@ def run_ppo_training(
 			self.writer = csv.DictWriter(self.log_file, fieldnames=list(TRAINING_STEP_CSV_FIELDNAMES))
 			self.writer.writeheader()
 			self.log_file.flush()
+			self.reward_timeline_writer.open()
 			if tracker is not None:
 				tracker.attach_paths(step_log_path=self.log_path)
 			print("training_step_csv=%s" % self.log_path.as_posix())
+			print("reward_timeline_csv=%s" % self.reward_timeline_path.as_posix())
 
 		def _on_step(self) -> bool:
 			rewards = self.locals.get("rewards")
@@ -924,6 +1002,11 @@ def run_ppo_training(
 
 			self.episode_step_count += 1
 			self.episode_reward_total += reward
+			self.reward_timeline_writer.write_row(
+				timesteps=int(self.num_timesteps),
+				reward=reward,
+				episode_total_reward=self.episode_reward_total,
+			)
 
 			writer.writerow({
 				"timesteps": int(self.num_timesteps),
@@ -975,12 +1058,18 @@ def run_ppo_training(
 				log_file.close()
 				self.log_file = None
 			self.writer = None
+			self.reward_timeline_writer.close()
 
 	model_reference_path = _resolve_model_reference_path(model_output)
 	artifact_path = _resolve_model_artifact_path(model_output)
 	artifact_path.parent.mkdir(parents=True, exist_ok=True)
-	training_log_path = Path(training_log_jsonl) if training_log_jsonl else _default_training_log_path(model_output)
-	training_step_csv_path = Path(training_step_csv) if training_step_csv else _default_training_step_csv_path(model_output)
+	training_log_path = Path(training_log_jsonl) if training_log_jsonl else _default_training_log_path(model_output, tracker)
+	training_step_csv_path = Path(training_step_csv) if training_step_csv else _default_training_step_csv_path(model_output, tracker)
+	reward_timeline_csv_path = (
+		Path(reward_timeline_csv)
+		if reward_timeline_csv
+		else _default_reward_timeline_csv_path(model_output, tracker)
+	)
 	rollout_steps = max(int(ppo_n_steps), 2)
 	batch_size = max(int(ppo_batch_size), 2)
 	batch_size = min(batch_size, rollout_steps)
@@ -1019,7 +1108,10 @@ def run_ppo_training(
 	model = PPO("MlpPolicy", env, **model_kwargs)
 	model.learn(
 		total_timesteps=timesteps,
-		callback=[EpisodeRewardLogger(training_log_path), TrainingStepCsvLogger(training_step_csv_path)],
+		callback=[
+			EpisodeRewardLogger(training_log_path),
+			TrainingStepCsvLogger(training_step_csv_path, reward_timeline_csv_path),
+		],
 	)
 	model.save(artifact_path.as_posix())
 	if tracker is not None:
@@ -1179,6 +1271,7 @@ def run_policy_evaluation(
 	log_steps: bool = False,
 	log_step_details: bool = False,
 	log_jsonl: str | None = None,
+	reward_timeline_csv: str | None = None,
 	tracker: RunTracker | None = None,
 ) -> None:
 	try:
@@ -1198,6 +1291,13 @@ def run_policy_evaluation(
 
 	jsonl_path = Path(log_jsonl) if log_jsonl else None
 	jsonl_file = None
+	reward_timeline_path = (
+		Path(reward_timeline_csv)
+		if reward_timeline_csv
+		else _default_reward_timeline_csv_path("policy_evaluation", tracker)
+	)
+	reward_timeline_writer = RewardTimelineCsvWriter(reward_timeline_path)
+	reward_timeline_writer.open()
 	if jsonl_path is not None:
 		jsonl_path.parent.mkdir(parents=True, exist_ok=True)
 		jsonl_file = jsonl_path.open("w", encoding="utf-8")
@@ -1207,6 +1307,7 @@ def run_policy_evaluation(
 
 	success_count = 0
 	try:
+		run_timesteps = 0
 		for episode in range(episodes):
 			observation, info = env.reset()
 			total_reward = 0.0
@@ -1216,6 +1317,12 @@ def run_policy_evaluation(
 				action_array = np.asarray(action, dtype=np.float32).reshape(-1)
 				observation, reward, terminated, truncated, last_info = env.step(action_array)
 				total_reward += reward
+				run_timesteps += 1
+				reward_timeline_writer.write_row(
+					timesteps=run_timesteps,
+					reward=reward,
+					episode_total_reward=total_reward,
+				)
 				debug_payload = dict(last_info.get("debug", {}))
 
 				if log_steps or log_step_details:
@@ -1281,6 +1388,7 @@ def run_policy_evaluation(
 	finally:
 		if jsonl_file is not None:
 			jsonl_file.close()
+		reward_timeline_writer.close()
 
 	print(
 		"eval_summary episodes=%d successes=%d success_rate=%.3f deterministic=%s"
@@ -1308,6 +1416,7 @@ def main() -> None:
 				log_steps=args.log_steps,
 				log_step_details=args.log_step_details,
 				log_jsonl=args.log_jsonl,
+				reward_timeline_csv=args.reward_timeline_csv,
 				tracker=tracker,
 			)
 			tracker.finalize(status="completed", step_log_path=args.log_jsonl)
@@ -1320,6 +1429,7 @@ def main() -> None:
 			log_steps=args.log_steps,
 			log_step_details=args.log_step_details,
 			log_jsonl=args.log_jsonl,
+			reward_timeline_csv=args.reward_timeline_csv,
 			tracker=tracker if args.random_only else None,
 		)
 		if args.random_only:
@@ -1338,6 +1448,7 @@ def main() -> None:
 			policy_input_config=policy_input_config,
 			training_log_jsonl=args.training_log_jsonl,
 			training_step_csv=args.training_step_csv,
+			reward_timeline_csv=args.reward_timeline_csv,
 			tracker=tracker,
 		)
 		tracker.finalize(

@@ -16,7 +16,7 @@ extends Node
 @export_range(0.0, 100.0, 0.001, "or_greater") var progress_reward_scale := 0.5
 @export_range(0.0, 100000.0, 0.1, "or_greater") var approach_bonus_radius := 120.0
 @export_range(0.0, 1000.0, 0.001, "or_greater") var approach_bonus_scale := 25.0
-@export_range(0.0, 100.0, 0.001, "or_greater") var trajectory_alignment_reward_scale := 5.0
+@export_range(0.0, 100000.0, 0.001, "or_greater") var trajectory_alignment_reward_scale := 5000.0
 @export_range(0.001, 10000.0, 0.1, "or_greater") var trajectory_reward_distance_offset := 50.0
 @export_range(0.0, 1000.0, 0.01, "or_greater") var trajectory_reward_min_relative_speed := 0.25
 @export_range(0.0, 100.0, 0.001, "or_greater") var speed_penalty_scale := 0.02

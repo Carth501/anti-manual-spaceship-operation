@@ -20,11 +20,12 @@ extends Node
 @export_range(0.001, 10000.0, 0.1, "or_greater") var trajectory_reward_distance_offset := 50.0
 @export_range(0.0, 1000.0, 0.01, "or_greater") var trajectory_reward_min_relative_speed := 0.25
 @export_range(0.0, 100.0, 0.001, "or_greater") var speed_penalty_scale := 0.02
-@export_range(0.0, 100000.0, 0.1, "or_greater") var speed_penalty_distance := 600.0
+@export_range(0.0, 100000.0, 0.1, "or_greater") var speed_penalty_distance := 150.0
+@export_range(0.1, 8.0, 0.1, "or_greater") var speed_penalty_falloff_exponent := 2.0
 @export_range(0.0, 100.0, 0.001, "or_greater") var thruster_penalty_scale := 0.001
 @export_range(0.0, 10.0, 0.0001, "or_greater") var living_penalty_per_frame := 0.001
 @export_range(0.0, 10000.0, 0.1, "or_greater") var goal_zone_entry_bonus := 20.0
-@export_range(0.0, 10000.0, 0.1, "or_greater") var success_reward := 150.0
+@export_range(0.0, 10000.0, 0.1, "or_greater") var success_reward := 3000.0
 @export_range(0.0, 10000.0, 0.1, "or_greater") var out_of_bounds_penalty := 25.0
 @export_range(0.0, 10000.0, 0.1, "or_greater") var timeout_penalty := 15.0
 @export var emit_step_debug_logs := false
@@ -337,6 +338,7 @@ func _build_reward_config() -> Dictionary:
 		"trajectory_reward_min_relative_speed": trajectory_reward_min_relative_speed,
 		"speed_penalty_scale": speed_penalty_scale,
 		"speed_penalty_distance": speed_penalty_distance,
+		"speed_penalty_falloff_exponent": speed_penalty_falloff_exponent,
 		"thruster_penalty_scale": thruster_penalty_scale,
 		"living_penalty_per_frame": living_penalty_per_frame,
 		"goal_zone_entry_bonus": goal_zone_entry_bonus,
@@ -429,9 +431,9 @@ func _build_step_response(
 
 
 func _compute_reward_terms() -> Dictionary:
-	# These terms are intentionally simple for the first curriculum:
-	# move toward the goal, bias trajectories that will pass near it, keep
-	# relative speed low, and avoid wasting thrust.
+	# Current shaping deliberately makes intercept geometry the primary signal.
+	# Speed only ramps in close to the goal so PPO can first learn to approach
+	# the target before it is asked to brake precisely for docking.
 	var current_goal_distance := _get_goal_distance()
 	var goal_distance_delta := previous_goal_distance - current_goal_distance
 	var progress_reward := goal_distance_delta * progress_reward_scale
@@ -524,7 +526,8 @@ func _get_speed_penalty_weight(goal_distance: float) -> float:
 	if speed_penalty_distance <= 0.0:
 		return 1.0
 
-	return clamp(1.0 - (goal_distance / speed_penalty_distance), 0.0, 1.0)
+	var normalized_nearness: float = clamp(1.0 - (goal_distance / speed_penalty_distance), 0.0, 1.0)
+	return pow(normalized_nearness, speed_penalty_falloff_exponent)
 
 
 func _get_observation() -> Array[float]:

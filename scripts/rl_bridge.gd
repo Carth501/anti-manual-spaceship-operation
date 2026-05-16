@@ -13,15 +13,16 @@ extends Node
 @export_range(1, 60, 1) var default_action_frames := 8
 @export_range(1, 100000, 1) var episode_frame_limit := 2400
 @export_range(0.0, 100000.0, 0.1, "or_greater") var training_boundary_radius := 1500.0
-@export_range(0.0, 100.0, 0.001, "or_greater") var progress_reward_scale := 0.5
+@export_range(0.0, 100.0, 0.001, "or_greater") var progress_reward_scale := 0.1
 @export_range(0.0, 100000.0, 0.1, "or_greater") var approach_bonus_radius := 120.0
-@export_range(0.0, 1000.0, 0.001, "or_greater") var approach_bonus_scale := 25.0
+@export_range(0.0, 1000.0, 0.001, "or_greater") var approach_bonus_scale := 0.0
 @export_range(0.0, 100000.0, 0.001, "or_greater") var trajectory_alignment_reward_scale := 5000.0
 @export_range(0.001, 10000.0, 0.1, "or_greater") var trajectory_reward_distance_offset := 50.0
 @export_range(0.0, 1000.0, 0.01, "or_greater") var trajectory_reward_min_relative_speed := 0.25
-@export_range(0.0, 100.0, 0.001, "or_greater") var speed_penalty_scale := 0.02
-@export_range(0.0, 100000.0, 0.1, "or_greater") var speed_penalty_distance := 150.0
-@export_range(0.1, 8.0, 0.1, "or_greater") var speed_penalty_falloff_exponent := 2.0
+@export_range(0.0, 100.0, 0.001, "or_greater") var speed_penalty_scale := 0.1
+@export_range(0.0, 100000.0, 0.1, "or_greater") var speed_penalty_distance := 200.0
+@export_range(0.0, 1000.0, 0.1, "or_greater") var speed_penalty_target_speed_margin := 3.0
+@export_range(0.1, 8.0, 0.1, "or_greater") var speed_penalty_falloff_exponent := 1.0
 @export_range(0.0, 100.0, 0.001, "or_greater") var thruster_penalty_scale := 0.001
 @export_range(0.0, 10.0, 0.0001, "or_greater") var living_penalty_per_frame := 0.001
 @export_range(0.0, 10000.0, 0.1, "or_greater") var goal_zone_entry_bonus := 20.0
@@ -338,6 +339,7 @@ func _build_reward_config() -> Dictionary:
 		"trajectory_reward_min_relative_speed": trajectory_reward_min_relative_speed,
 		"speed_penalty_scale": speed_penalty_scale,
 		"speed_penalty_distance": speed_penalty_distance,
+		"speed_penalty_target_speed_margin": speed_penalty_target_speed_margin,
 		"speed_penalty_falloff_exponent": speed_penalty_falloff_exponent,
 		"thruster_penalty_scale": thruster_penalty_scale,
 		"living_penalty_per_frame": living_penalty_per_frame,
@@ -431,15 +433,19 @@ func _build_step_response(
 
 
 func _compute_reward_terms() -> Dictionary:
-	# Current shaping deliberately makes intercept geometry the primary signal.
-	# Speed only ramps in close to the goal so PPO can first learn to approach
-	# the target before it is asked to brake precisely for docking.
+	# Simplified shaping: keep one small direct progress hint, make trajectory
+	# alignment the dominant far-field signal, and only penalize excess speed
+	# once the ship is close enough that terminal braking matters.
 	var current_goal_distance := _get_goal_distance()
 	var goal_distance_delta := previous_goal_distance - current_goal_distance
 	var progress_reward := goal_distance_delta * progress_reward_scale
-	var previous_goal_potential := _compute_goal_potential(previous_goal_distance)
-	var current_goal_potential := _compute_goal_potential(current_goal_distance)
-	var approach_bonus := (current_goal_potential - previous_goal_potential) * approach_bonus_scale
+	var previous_goal_potential := 0.0
+	var current_goal_potential := 0.0
+	var approach_bonus := 0.0
+	if approach_bonus_scale > 0.0:
+		previous_goal_potential = _compute_goal_potential(previous_goal_distance)
+		current_goal_potential = _compute_goal_potential(current_goal_distance)
+		approach_bonus = (current_goal_potential - previous_goal_potential) * approach_bonus_scale
 	var relative_velocity := goal_area.get_relative_velocity()
 	var trajectory_closest_distance := _compute_trajectory_closest_goal_distance(relative_velocity, current_goal_distance)
 	var trajectory_closing_time := _compute_trajectory_closing_time(relative_velocity)
@@ -448,7 +454,11 @@ func _compute_reward_terms() -> Dictionary:
 		trajectory_closest_distance,
 	)
 	var speed_penalty_weight := _get_speed_penalty_weight(current_goal_distance)
-	var speed_penalty := goal_area.get_relative_speed() * speed_penalty_scale * speed_penalty_weight
+	var speed_penalty_target_speed := _get_speed_penalty_target_speed(current_goal_distance, speed_penalty_weight)
+	var speed_penalty_excess_speed := 0.0
+	if speed_penalty_weight > 0.0:
+		speed_penalty_excess_speed = max(goal_area.get_relative_speed() - speed_penalty_target_speed, 0.0)
+	var speed_penalty := speed_penalty_excess_speed * speed_penalty_scale
 	var throttles := ship.get_thruster_controller().get_current_throttles()
 	var throttle_sum := 0.0
 	for throttle_value in throttles:
@@ -475,6 +485,8 @@ func _compute_reward_terms() -> Dictionary:
 		"trajectory_alignment_reward": trajectory_alignment_reward,
 		"speed_penalty": speed_penalty,
 		"speed_penalty_weight": speed_penalty_weight,
+		"speed_penalty_target_speed": speed_penalty_target_speed,
+		"speed_penalty_excess_speed": speed_penalty_excess_speed,
 		"thruster_penalty": thruster_penalty,
 		"living_penalty": living_penalty,
 		"dense_total": total_reward,
@@ -520,14 +532,20 @@ func _compute_trajectory_alignment_reward(current_goal_distance: float, closest_
 
 
 func _get_speed_penalty_weight(goal_distance: float) -> float:
-	if goal_area.is_ship_inside():
-		return 1.0
-
 	if speed_penalty_distance <= 0.0:
-		return 1.0
+		return 0.0
 
 	var normalized_nearness: float = clamp(1.0 - (goal_distance / speed_penalty_distance), 0.0, 1.0)
 	return pow(normalized_nearness, speed_penalty_falloff_exponent)
+
+
+func _get_speed_penalty_target_speed(goal_distance: float, penalty_weight: float = -1.0) -> float:
+	var near_target_speed := max(goal_area.speed_threshold_mps, 0.0)
+	var far_target_speed := near_target_speed + max(speed_penalty_target_speed_margin, 0.0)
+	var normalized_nearness := penalty_weight
+	if normalized_nearness < 0.0:
+		normalized_nearness = _get_speed_penalty_weight(goal_distance)
+	return lerp(far_target_speed, near_target_speed, normalized_nearness)
 
 
 func _get_observation() -> Array[float]:
